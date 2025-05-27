@@ -799,19 +799,19 @@ Draw out abstract ideas like hope, memory, loss, wonder, or transformation — a
 }
 function setForSale() {
     primaryPrompt.value = `Examine the object in this image and try to identify what it is. Provide a detailed product description,
-     including brand, condition, typical use, and any standout features.
-     Then estimate its current value in three conditions: new, used (good condition), and broken/as-is. in us dollars $0.00`;
+including brand, condition, typical use, and any standout features.
+Then estimate its current value in three conditions: new, used (good condition), and broken/as-is. in us dollars $0.00`;
 
     secondaryPrompt.value = `Now write a compelling, friendly listing description that could be used to 
-    sell this item on a marketplace like Facebook Marketplace.
-     Focus on benefits, condition, and why someone might want to buy it. Keep it clear and persuasive.`;
+sell this item on a marketplace like Facebook Marketplace.
+Focus on benefits, condition, and why someone might want to buy it. Keep it clear and persuasive.`;
 }
 function setMarketable() {
     primaryPrompt.value = `Now write a concise, friendly, and persuasive description that could be used to sell this item
-     on a platform like Facebook Marketplace. Focus on benefits, general use, and what makes this item worth buying. Keep the tone approachable.`;
+on a platform like Facebook Marketplace. Focus on benefits, general use, and what makes this item worth buying. Keep the tone approachable.`;
 
     secondaryPrompt.value = `Add a short attention-grabbing sentence or headline that could help the listing stand out. 
-    Include urgency if appropriate (e.g., “Great deal  priced to sell!” or “Hard to find, dont miss out!”), and reinforce the condition and value.`;
+Include urgency if appropriate (e.g., “Great deal  priced to sell!” or “Hard to find, dont miss out!”), and reinforce the condition and value.`;
 }
 
 
