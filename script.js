@@ -797,7 +797,7 @@ Let your words paint the image as if it were a living poem or a moment frozen in
 What universal truths, dreams, or inner human experiences could this scene represent? 
 Draw out abstract ideas like hope, memory, loss, wonder, or transformation — and connect them to what is visible.`;
 }
-function setsetForSale() {
+function setForSale() {
     primaryPrompt.value = `Examine the object in this image and try to identify what it is. Provide a detailed product description,
      including brand, condition, typical use, and any standout features.
      Then estimate its current value in three conditions: new, used (good condition), and broken/as-is. in us dollars $0.00`;
