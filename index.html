@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision Stream - Dual Analysis</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Vision Stream</h1>
+            <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <h3 style="margin-bottom: 20px; color: #495057;">Camera Feed</h3>
+                
+                <div class="video-container">
+                    <video id="webcamFeed" autoplay playsinline muted></video>
+                    <canvas id="captureCanvas"></canvas>
+                    <div id="statusOverlay" class="status-overlay">
+                        <div>
+                            <div id="statusText">Click "Start Camera" to begin</div>
+                            <div id="loadingSpinner" class="loading" style="display: none; margin: 10px auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="startButton" class="btn primary">Start Camera</button>
+                    <button id="stopButton" class="btn danger" disabled>Stop Camera</button>
+                    <button id="toggleAnalysisButton" class="btn warning" disabled>Start Auto Analysis</button>
+                    <button id="analyzeNowButton" class="btn success" disabled>Analyze Now</button>
+                </div>
+
+                <div class="interval-control">
+                    <label for="analysisInterval">Auto-analysis interval:</label>
+                    <input type="number" id="analysisInterval" value="30" min="10" max="300">
+                    <span>seconds</span>
+                </div>
+
+                <div class="status-info">
+                    <div id="cameraStatus">Camera: Disconnected</div>
+                    <div id="analysisStatus">Analysis: Stopped</div>
+                </div>
+            </div>
+
+            <div class="prompts-section">
+                <h3 style="margin-bottom: 20px; color: #495057;">Analysis Prompts</h3>
+                
+                <div class="prompt-group">
+                    <label for="primaryPrompt">Primary Analysis Prompt:</label>
+                    <textarea id="primaryPrompt" placeholder="Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.">Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.</textarea>
+                </div>
+
+                <div class="prompt-group">
+                    <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
+                    <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="responses-table">
+            <div class="table-header">
+                <h3>Analysis History</h3>
+                <div class="table-controls">
+                    <button id="exportButton" class="btn primary" disabled>Export CSV</button>
+                    <button id="clearButton" class="btn danger">Clear History</button>
+                </div>
+            </div>
+            <div class="table-content" id="responsesList">
+                <div style="text-align: center; padding: 40px; color: #6c757d;">
+                    No analyses yet. Start the camera and begin analysis to see results here.
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
