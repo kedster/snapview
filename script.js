@@ -23,6 +23,9 @@ const switchCameraButton = document.getElementById('switchCameraButton');
 const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
+const videoTrack = currentStream.getVideoTracks()[0];
+const facing = videoTrack.getSettings().facingMode;
+if (facing) currentFacingMode = facing; // set actual
 
 // State
 let currentStream = null;
@@ -48,11 +51,10 @@ window.addEventListener('load', () => {
     isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobileDevice) {
-        // On mobile, hide camera select dropdown and show simple switch button
         cameraSelect.style.display = 'none';
-        switchCameraButton.textContent = '🔄 Switch to Back Camera';
+        const nextCamera = currentFacingMode === 'user' ? 'Back' : 'Front';
+        switchCameraButton.textContent = `🔄 Switch to ${nextCamera} Camera`;
     } else {
-        // On desktop, show camera selection dropdown
         initializeCameras();
     }
 });
@@ -418,8 +420,7 @@ async function analyzeFrame() {
 
 // Preset prompt functions
 function setRepairPrompts() {
-primaryPrompt.value = `
-Analyze this image for any broken, damaged, or malfunctioning items. 
+primaryPrompt.value = `Analyze this image for any broken, damaged, or malfunctioning items. 
 Focus on objects showing signs of wear, cracks, rust, missing parts, loose connections, discoloration, or other visible issues.
 
 For each damaged item you identify, return a JSON object with the following fields:
@@ -438,8 +439,6 @@ For each damaged item you identify, return a JSON object with the following fiel
   "skillRequired": "beginner | intermediate | expert",
   "estimatedRepairTimeHours": "estimate in hours and min"
 }
-
-Return your findings as an array of such JSON objects, one per damaged item. 
 Do not include any additional text or explanation — just the JSON array.
 `;
 
