@@ -41,6 +41,7 @@ clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
 
+
 // Initialize camera list on page load
 window.addEventListener('load', () => {
     // Detect mobile device
@@ -120,57 +121,54 @@ async function startCamera() {
         statusText.textContent = 'Requesting camera permission...';
         loadingSpinner.style.display = 'block';
 
-        let constraints;
+        let constraints = {
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+            }
+        };
 
         if (isMobileDevice) {
-            // Mobile device: use facingMode
-            constraints = { 
-                video: { 
-                    facingMode: currentFacingMode,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            };
+            constraints.video.facingMode = { ideal: currentFacingMode };
         } else {
-            // Desktop: use deviceId if available
+            // Use dropdown on desktop
             const selectedCameraId = cameraSelect.value || (availableCameras.length > 0 ? availableCameras[0].deviceId : undefined);
-            
-            constraints = { 
-                video: { 
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user'
-                } 
-            };
-
             if (selectedCameraId) {
                 constraints.video.deviceId = { exact: selectedCameraId };
-                delete constraints.video.facingMode;
             }
         }
 
+        // Get stream to trigger permissions on iOS
         currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        // Now enumerate real device labels AFTER permission
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        availableCameras = devices.filter(device => device.kind === 'videoinput');
+
+        // If mobile and facingMode failed, try fallback to first non-front camera
+        if (isMobileDevice && currentFacingMode === 'environment') {
+            const backCam = availableCameras.find(cam => /back|environment/i.test(cam.label));
+            if (backCam) {
+                stopCamera(); // Stop the previous stream
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: backCam.deviceId } }
+                });
+            }
+        }
+
         webcamFeed.srcObject = currentStream;
-        
         webcamFeed.onloadedmetadata = () => {
             webcamFeed.play();
             statusOverlay.classList.add('hidden');
             
-            // Update UI
             startButton.disabled = true;
             stopButton.disabled = false;
             analyzeNowButton.disabled = false;
             switchCameraButton.disabled = false;
-            
-            if (isMobileDevice) {
-                const cameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
-                cameraStatus.textContent = `Camera: Connected (${cameraType})`;
-                const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
-                switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
-            } else {
-                cameraStatus.textContent = 'Camera: Connected';
-            }
-            
+
+            const label = currentStream.getVideoTracks()[0].label || "Unknown";
+            cameraStatus.textContent = `Camera: Connected (${label})`;
+
             analysisStatus.textContent = 'Analysis: Ready';
             loadingSpinner.style.display = 'none';
         };
@@ -182,6 +180,7 @@ async function startCamera() {
         cameraStatus.textContent = `Camera: Error - ${error.message}`;
     }
 }
+
 
 function stopCamera() {
     if (currentStream) {
@@ -202,20 +201,41 @@ function stopCamera() {
     analysisStatus.textContent = 'Analysis: Stopped';
 }
 
-async function switchCamera() {
-    if (!currentStream) {
-        alert('Please start the camera first');
-        return;
-    }
+async function switchMobileCamera() {
+    try {
+        // Toggle between 'user' and 'environment'
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
 
-    if (isMobileDevice) {
-        // Mobile device: toggle between front and back camera
-        await switchMobileCamera();
-    } else {
-        // Desktop: switch to selected camera from dropdown
-        await switchDesktopCamera();
+        // Stop existing stream
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        const constraints = {
+            video: {
+                facingMode: { exact: currentFacingMode },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        webcamFeed.srcObject = currentStream;
+
+        webcamFeed.onloadedmetadata = () => {
+            webcamFeed.play();
+
+            const cameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
+            cameraStatus.textContent = `Camera: Connected (${cameraType})`;
+            const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
+            switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+        };
+    } catch (error) {
+        console.error('Error switching mobile camera:', error);
+        cameraStatus.textContent = `Camera: Error switching - ${error.message}`;
     }
 }
+
 
     async function switchMobileCamera() {
         // Stop current stream
