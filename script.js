@@ -771,7 +771,7 @@ function setIdentifyPrompts() {
     primaryPrompt.value = `Examine the image closely and list every identifiable element you can see. 
 Include people, animals, objects, environments, text, logos, symbols, and activities. 
 Be specific — describe each item's appearance, approximate location in the frame, and any notable details. 
-Treat it like you're logging a scene for an investigator or cataloger.`;
+Treat it like you're logging a scene for an investigator or cataloger. Return a csv list`;
 
     secondaryPrompt.value = `For each identified element, explain its likely role, significance, origin, or function. 
 Describe how these items relate to each other or suggest the overall context or story the scene may represent. 

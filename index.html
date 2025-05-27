@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapView - Dual Analysis</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
  <div class="container">
@@ -92,5 +92,16 @@
     </div>
 
   <script src="script.js"></script>
+  <script>
+  if (location.search.includes('dev')) {
+    const links = document.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(link => {
+      const url = new URL(link.href);
+      url.searchParams.set('v', Date.now()); // force unique each load
+      link.href = url.toString();
+    });
+  }
+</script>
+
 </body>
 </html>
