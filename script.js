@@ -797,6 +797,23 @@ Let your words paint the image as if it were a living poem or a moment frozen in
 What universal truths, dreams, or inner human experiences could this scene represent? 
 Draw out abstract ideas like hope, memory, loss, wonder, or transformation — and connect them to what is visible.`;
 }
+function setsetForSale() {
+    primaryPrompt.value = `Examine the object in this image and try to identify what it is. Provide a detailed product description,
+     including brand, condition, typical use, and any standout features.
+     Then estimate its current value in three conditions: new, used (good condition), and broken/as-is. in us dollars $0.00`;
+
+    secondaryPrompt.value = `Now write a compelling, friendly listing description that could be used to 
+    sell this item on a marketplace like Facebook Marketplace.
+     Focus on benefits, condition, and why someone might want to buy it. Keep it clear and persuasive.`;
+}
+function setMarketable() {
+    primaryPrompt.value = `Now write a concise, friendly, and persuasive description that could be used to sell this item
+     on a platform like Facebook Marketplace. Focus on benefits, general use, and what makes this item worth buying. Keep the tone approachable.`;
+
+    secondaryPrompt.value = `Add a short attention-grabbing sentence or headline that could help the listing stand out. 
+    Include urgency if appropriate (e.g., “Great deal – priced to sell!” or “Hard to find, don’t miss out!”), and reinforce the condition and value.`;
+}
+
 
 // Display and utility functions
 function updateResponsesDisplay() {
