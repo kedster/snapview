@@ -23,17 +23,14 @@ const switchCameraButton = document.getElementById('switchCameraButton');
 const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
-const videoTrack = currentStream.getVideoTracks()[0];
-const facing = videoTrack.getSettings().facingMode;
-if (facing) currentFacingMode = facing; // set actual
 
 // State
 let currentStream = null;
 let isAnalyzing = false;
 let responses = [];
 let availableCameras = [];
-let currentFacingMode = 'user'; // 'user' for front camera, 'environment' for back camera
-let isMobileDevice = false;
+let currentFacingMode = 'environment'; // Default to back camera
+let isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Event Listeners
 startButton.addEventListener('click', startCamera);
@@ -44,62 +41,78 @@ clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
 
-
 // Initialize camera list on page load
 window.addEventListener('load', () => {
-    // Detect mobile device
-    isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
     if (isMobileDevice) {
         cameraSelect.style.display = 'none';
+        switchCameraButton.style.display = 'inline-block';
         const nextCamera = currentFacingMode === 'user' ? 'Back' : 'Front';
         switchCameraButton.textContent = `🔄 Switch to ${nextCamera} Camera`;
     } else {
+        switchCameraButton.style.display = 'none';
         initializeCameras();
     }
 });
 
-
-    // Flash and pause effects
-    function triggerFlashEffect() {
-        // Flash effect
-        flashOverlay.classList.add('flash');
-        setTimeout(() => {
-            flashOverlay.classList.remove('flash');
-        }, 150);
-
-        // Pause video effect
-        webcamFeed.classList.add('analyzing');
+// Robust camera access strategy
+async function requestInitialAccess() {
+    try {
+        // Request broad access first to get permissions and device labels
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: isMobileDevice ? 'environment' : undefined,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            } 
+        });
         
-        // Show analysis indicators
-        analysisIndicator.classList.add('active');
-        frameIndicator.classList.add('active');
-        
-        // Button effect
-        analyzeNowButton.classList.add('analyzing');
+        // Stop the stream immediately - we just needed permissions
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+    } catch (err) {
+        console.error("Initial camera access denied:", err);
+        throw new Error("Camera permission required");
     }
+}
 
-    function removeFlashEffect() {
-        // Remove video pause effect
-        webcamFeed.classList.remove('analyzing');
+// Get labeled cameras after permission granted
+async function getLabeledCameras() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter(device => device.kind === 'videoinput');
+}
+
+// Find the best camera based on device type
+function findBestCamera(cameras) {
+    if (!cameras || cameras.length === 0) return null;
+    
+    if (isMobileDevice) {
+        // Priority 1: Look for cameras with "back", "rear", or "environment" in label
+        let backCamera = cameras.find(cam => 
+            /back|rear|environment/i.test(cam.label) && 
+            !/front|user/i.test(cam.label)
+        );
         
-        // Hide analysis indicators
-        analysisIndicator.classList.remove('active');
+        if (backCamera) return backCamera;
         
-        // Remove button effect
-        analyzeNowButton.classList.remove('analyzing');
+        // Priority 2: If multiple cameras, assume last one is back (common pattern)
+        if (cameras.length > 1) {
+            return cameras[cameras.length - 1];
+        }
         
-        // Hide frame indicator after delay
-        setTimeout(() => {
-            frameIndicator.classList.remove('active');
-        }, 1000);
+        // Priority 3: Look for camera without "front" or "user" in label
+        let nonFrontCamera = cameras.find(cam => !/front|user/i.test(cam.label));
+        if (nonFrontCamera) return nonFrontCamera;
     }
+    
+    // Fallback: return first available camera
+    return cameras[0];
+}
 
-    // Camera enumeration and initialization
+// Camera enumeration for desktop
 async function initializeCameras() {
     try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        availableCameras = devices.filter(device => device.kind === 'videoinput');
+        await requestInitialAccess();
+        availableCameras = await getLabeledCameras();
         
         // Populate camera select dropdown
         cameraSelect.innerHTML = '<option value="">Select camera...</option>';
@@ -111,78 +124,193 @@ async function initializeCameras() {
         });
 
         if (availableCameras.length > 0) {
-            cameraSelect.value = availableCameras[0].deviceId;
+            const bestCamera = findBestCamera(availableCameras);
+            cameraSelect.value = bestCamera.deviceId;
         }
     } catch (error) {
-        console.error('Error enumerating cameras:', error);
+        console.error('Error initializing cameras:', error);
+        cameraStatus.textContent = `Camera: Initialization Error - ${error.message}`;
     }
 }
-// Camera Functions
+
+// Enhanced flash and analysis effects
+function triggerFlashEffect() {
+    // Immediate flash effect
+    flashOverlay.style.opacity = '0.8';
+    flashOverlay.style.display = 'block';
+    
+    // Quick flash animation
+    setTimeout(() => {
+        flashOverlay.style.opacity = '0';
+    }, 100);
+    
+    setTimeout(() => {
+        flashOverlay.style.display = 'none';
+        flashOverlay.style.opacity = '0.8'; // Reset for next time
+    }, 200);
+
+    // Video pause/freeze effect
+    webcamFeed.style.filter = 'grayscale(50%) brightness(1.2)';
+    webcamFeed.style.transform = 'scale(1.02)';
+    webcamFeed.style.transition = 'all 0.2s ease';
+    
+    // Show analysis indicators with staggered animation
+    analysisIndicator.style.opacity = '1';
+    analysisIndicator.style.transform = 'scale(1)';
+    
+    setTimeout(() => {
+        frameIndicator.style.opacity = '1';
+        frameIndicator.style.transform = 'scale(1)';
+    }, 150);
+    
+    // Button visual feedback
+    analyzeNowButton.style.transform = 'scale(0.95)';
+    analyzeNowButton.style.backgroundColor = '#28a745';
+    analyzeNowButton.style.boxShadow = '0 0 20px rgba(40, 167, 69, 0.5)';
+}
+
+function removeFlashEffect() {
+    // Remove video effects
+    webcamFeed.style.filter = 'none';
+    webcamFeed.style.transform = 'scale(1)';
+    
+    // Hide analysis indicators with fade out
+    analysisIndicator.style.opacity = '0';
+    analysisIndicator.style.transform = 'scale(0.8)';
+    
+    // Reset button
+    analyzeNowButton.style.transform = 'scale(1)';
+    analyzeNowButton.style.backgroundColor = '';
+    analyzeNowButton.style.boxShadow = '';
+    
+    // Hide frame indicator after delay
+    setTimeout(() => {
+        frameIndicator.style.opacity = '0';
+        frameIndicator.style.transform = 'scale(0.8)';
+    }, 1000);
+}
+
+// Enhanced camera start function
 async function startCamera() {
     try {
         statusText.textContent = 'Requesting camera permission...';
+        statusOverlay.classList.remove('hidden');
         loadingSpinner.style.display = 'block';
 
-        let constraints = {
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-            }
-        };
+        // Step 1: Request initial access for permissions
+        await requestInitialAccess();
+        
+        // Step 2: Get labeled cameras
+        availableCameras = await getLabeledCameras();
+
+        if (availableCameras.length === 0) {
+            throw new Error("No cameras found");
+        }
+
+        let selectedCamera = null;
+        let constraints = {};
 
         if (isMobileDevice) {
-            constraints.video.facingMode = { ideal: currentFacingMode };
+            // Mobile: Try facingMode first, then fallback to specific device
+            try {
+                constraints = {
+                    video: {
+                        facingMode: { ideal: currentFacingMode },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Get actual camera info
+                const videoTrack = currentStream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                if (settings.facingMode) {
+                    currentFacingMode = settings.facingMode;
+                }
+                
+            } catch (facingModeError) {
+                console.warn('FacingMode failed, trying device selection:', facingModeError);
+                
+                // Fallback: use device selection
+                selectedCamera = findBestCamera(availableCameras);
+                constraints = {
+                    video: {
+                        deviceId: { exact: selectedCamera.deviceId },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            }
+            
+            // Update switch button
+            const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
+            switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+            
         } else {
-            // Use dropdown on desktop
-            const selectedCameraId = cameraSelect.value || (availableCameras.length > 0 ? availableCameras[0].deviceId : undefined);
-            if (selectedCameraId) {
-                constraints.video.deviceId = { exact: selectedCameraId };
+            // Desktop: Use selected camera or best available
+            const selectedCameraId = cameraSelect.value;
+            selectedCamera = availableCameras.find(cam => cam.deviceId === selectedCameraId) || findBestCamera(availableCameras);
+
+            if (!selectedCamera) {
+                throw new Error("No suitable camera found");
             }
+
+            constraints = {
+                video: {
+                    deviceId: { exact: selectedCamera.deviceId },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            // Update dropdown
+            cameraSelect.innerHTML = '<option value="">Select camera...</option>';
+            availableCameras.forEach((camera, index) => {
+                const option = document.createElement('option');
+                option.value = camera.deviceId;
+                option.textContent = camera.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
+            cameraSelect.value = selectedCamera.deviceId;
         }
 
-        // Get stream to trigger permissions on iOS
-        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        // Now enumerate real device labels AFTER permission
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        availableCameras = devices.filter(device => device.kind === 'videoinput');
-
-        // If mobile and facingMode failed, try fallback to first non-front camera
-        if (isMobileDevice && currentFacingMode === 'environment') {
-            const backCam = availableCameras.find(cam => /back|environment/i.test(cam.label));
-            if (backCam) {
-                stopCamera(); // Stop the previous stream
-                currentStream = await navigator.mediaDevices.getUserMedia({
-                    video: { deviceId: { exact: backCam.deviceId } }
-                });
-            }
-        }
-
+        // Set up video element
         webcamFeed.srcObject = currentStream;
+        
         webcamFeed.onloadedmetadata = () => {
             webcamFeed.play();
             statusOverlay.classList.add('hidden');
-            
+
+            // Update UI state
             startButton.disabled = true;
             stopButton.disabled = false;
             analyzeNowButton.disabled = false;
             switchCameraButton.disabled = false;
 
-            const label = currentStream.getVideoTracks()[0].label || "Unknown";
-            cameraStatus.textContent = `Camera: Connected (${label})`;
+            // Update status
+            const videoTrack = currentStream.getVideoTracks()[0];
+            const cameraLabel = videoTrack.label || selectedCamera?.label || "Unknown Camera";
+            const cameraType = isMobileDevice ? (currentFacingMode === 'user' ? 'Front' : 'Back') : '';
+            cameraStatus.textContent = `Camera: Connected ${cameraType ? `(${cameraType})` : `(${cameraLabel})`}`;
 
             analysisStatus.textContent = 'Analysis: Ready';
             loadingSpinner.style.display = 'none';
         };
 
     } catch (error) {
-        console.error('Camera error:', error);
+        console.error('Camera startup error:', error);
         statusText.textContent = `Camera error: ${error.message}`;
         loadingSpinner.style.display = 'none';
         cameraStatus.textContent = `Camera: Error - ${error.message}`;
+        statusOverlay.classList.remove('hidden');
     }
 }
-
 
 function stopCamera() {
     if (currentStream) {
@@ -190,6 +318,9 @@ function stopCamera() {
         webcamFeed.srcObject = null;
         currentStream = null;
     }
+    
+    // Reset any visual effects
+    removeFlashEffect();
     
     // Update UI
     statusOverlay.classList.remove('hidden');
@@ -203,19 +334,32 @@ function stopCamera() {
     analysisStatus.textContent = 'Analysis: Stopped';
 }
 
-async function switchMobileCamera() {
-    try {
-        // Toggle between 'user' and 'environment'
-        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+// Unified switch camera function
+async function switchCamera() {
+    if (isMobileDevice) {
+        await switchMobileCamera();
+    } else {
+        await switchDesktopCamera();
+    }
+}
 
-        // Stop existing stream
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-        }
+async function switchMobileCamera() {
+    if (!currentStream) return;
+
+    try {
+        statusText.textContent = 'Switching camera...';
+        statusOverlay.classList.remove('hidden');
+        loadingSpinner.style.display = 'block';
+
+        // Stop current stream
+        currentStream.getTracks().forEach(track => track.stop());
+
+        // Toggle facing mode
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
 
         const constraints = {
             video: {
-                facingMode: { exact: currentFacingMode },
+                facingMode: { ideal: currentFacingMode },
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
             }
@@ -226,65 +370,33 @@ async function switchMobileCamera() {
 
         webcamFeed.onloadedmetadata = () => {
             webcamFeed.play();
-
-            const cameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
-            cameraStatus.textContent = `Camera: Connected (${cameraType})`;
+            statusOverlay.classList.add('hidden');
+            loadingSpinner.style.display = 'none';
+            
+            // Update button text
             const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
             switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+            
+            const currentCameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
+            cameraStatus.textContent = `Camera: Connected (${currentCameraType})`;
         };
+
     } catch (error) {
-        console.error('Error switching mobile camera:', error);
-        cameraStatus.textContent = `Camera: Error switching - ${error.message}`;
+        console.error('Mobile camera switch error:', error);
+        statusText.textContent = `Switch error: ${error.message}`;
+        loadingSpinner.style.display = 'none';
+        cameraStatus.textContent = `Camera: Switch Error - ${error.message}`;
+        
+        // Revert facing mode on error
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        
+        // Try to restart with original camera
+        setTimeout(() => {
+            startCamera();
+        }, 1000);
     }
 }
 
-
-    async function switchMobileCamera() {
-        // Stop current stream
-        currentStream.getTracks().forEach(track => track.stop());
-
-        try {
-            statusText.textContent = 'Switching camera...';
-            statusOverlay.classList.remove('hidden');
-            loadingSpinner.style.display = 'block';
-
-            // Toggle facing mode
-            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-
-            const constraints = {
-                video: {
-                    facingMode: currentFacingMode,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
-
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            webcamFeed.srcObject = currentStream;
-
-            webcamFeed.onloadedmetadata = () => {
-                webcamFeed.play();
-                statusOverlay.classList.add('hidden');
-                loadingSpinner.style.display = 'none';
-                
-                // Update button text
-                const cameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
-                switchCameraButton.textContent = `🔄 Switch to ${cameraType} Camera`;
-                
-                const currentCameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
-                cameraStatus.textContent = `Camera: Connected (${currentCameraType})`;
-            };
-
-        } catch (error) {
-            console.error('Mobile camera switch error:', error);
-            statusText.textContent = `Switch error: ${error.message}`;
-            loadingSpinner.style.display = 'none';
-            cameraStatus.textContent = `Camera: Switch Error - ${error.message}`;
-            
-            // Revert facing mode on error
-            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-        }
-    }
 async function switchDesktopCamera() {
     const selectedCameraId = cameraSelect.value;
     if (!selectedCameraId) {
@@ -292,13 +404,15 @@ async function switchDesktopCamera() {
         return;
     }
 
-    // Stop current stream
-    currentStream.getTracks().forEach(track => track.stop());
+    if (!currentStream) return;
 
     try {
         statusText.textContent = 'Switching camera...';
         statusOverlay.classList.remove('hidden');
         loadingSpinner.style.display = 'block';
+
+        // Stop current stream
+        currentStream.getTracks().forEach(track => track.stop());
 
         const constraints = {
             video: {
@@ -315,7 +429,10 @@ async function switchDesktopCamera() {
             webcamFeed.play();
             statusOverlay.classList.add('hidden');
             loadingSpinner.style.display = 'none';
-            cameraStatus.textContent = 'Camera: Connected (Switched)';
+            
+            const selectedCamera = availableCameras.find(cam => cam.deviceId === selectedCameraId);
+            const cameraLabel = selectedCamera?.label || 'Unknown Camera';
+            cameraStatus.textContent = `Camera: Connected (${cameraLabel})`;
         };
 
     } catch (error) {
@@ -354,6 +471,9 @@ async function analyzeFrame() {
     }
 
     isAnalyzing = true;
+    
+    // Trigger enhanced flash effect
+    triggerFlashEffect();
     
     // Update UI
     analyzeNowButton.disabled = true;
@@ -415,12 +535,17 @@ async function analyzeFrame() {
         isAnalyzing = false;
         analyzeNowButton.disabled = false;
         analysisStatus.textContent = 'Analysis: Ready';
+        
+        // Remove flash effects after delay
+        setTimeout(() => {
+            removeFlashEffect();
+        }, 1500);
     }
 }
 
 // Preset prompt functions
 function setRepairPrompts() {
-primaryPrompt.value = `Analyze this image for any broken, damaged, or malfunctioning items. 
+    primaryPrompt.value = `Analyze this image for any broken, damaged, or malfunctioning items. 
 Focus on objects showing signs of wear, cracks, rust, missing parts, loose connections, discoloration, or other visible issues.
 
 For each damaged item you identify, return a JSON object with the following fields:
@@ -439,8 +564,7 @@ For each damaged item you identify, return a JSON object with the following fiel
   "skillRequired": "beginner | intermediate | expert",
   "estimatedRepairTimeHours": "estimate in hours and min"
 }
-Do not include any additional text or explanation — just the JSON array.
-`;
+Do not include any additional text or explanation — just the JSON array.`;
 
     secondaryPrompt.value = `For each identified issue, suggest a specific repair method, required tools, estimated skill level, and safety precautions. 
 Clearly indicate whether the task is suitable for DIY or should be handled by a professional. 
@@ -448,52 +572,42 @@ Keep the tone informative and practical, and avoid unnecessary assumptions. if n
 }
 
 function setNicknamePrompts() {
-   primaryPrompt.value = `
-Observe the people, pets, or objects in this image and describe their most unique and defining characteristics. 
+    primaryPrompt.value = `Observe the people, pets, or objects in this image and describe their most unique and defining characteristics. 
 Focus on expressions, poses, clothing, accessories, body language, or behavior that makes them stand out. 
 Write as if you're introducing them to someone else, using vivid and playful descriptions.`;
 
-secondaryPrompt.value = `
-Create fun, creative nicknames based on the traits you identified. 
-Explain why each nickname fits the subject’s look or personality. 
+    secondaryPrompt.value = `Create fun, creative nicknames based on the traits you identified. 
+Explain why each nickname fits the subject's look or personality. 
 Aim for memorable and amusing names that reflect who or what they appear to be, like you're naming a character in a story.`;
-
 }
 
 function setIdentifyPrompts() {
-   primaryPrompt.value = `
-Examine the image closely and list every identifiable element you can see. 
+    primaryPrompt.value = `Examine the image closely and list every identifiable element you can see. 
 Include people, animals, objects, environments, text, logos, symbols, and activities. 
-Be specific — describe each item’s appearance, approximate location in the frame, and any notable details. 
+Be specific — describe each item's appearance, approximate location in the frame, and any notable details. 
 Treat it like you're logging a scene for an investigator or cataloger.`;
 
-secondaryPrompt.value = `
-For each identified element, explain its likely role, significance, origin, or function. 
+    secondaryPrompt.value = `For each identified element, explain its likely role, significance, origin, or function. 
 Describe how these items relate to each other or suggest the overall context or story the scene may represent. 
 Aim to build a narrative or scene analysis from the cataloged components.`;
-
 }
 
 function setNicePrompts() {
-   primaryPrompt.value = `
-Describe all the positive, joyful, or uplifting aspects of this image. 
+    primaryPrompt.value = `Describe all the positive, joyful, or uplifting aspects of this image. 
 Focus on signs of kindness, beauty, peace, creativity, or emotional warmth. 
 Highlight anything that might make someone smile, feel inspired, or appreciate life more.`;
 
-secondaryPrompt.value = `
-Expand on why these positive elements matter. 
+    secondaryPrompt.value = `Expand on why these positive elements matter. 
 Describe the emotions they evoke, what makes them special, and how they might resonate with viewers. 
 Suggest how this image could teach a lesson, spark gratitude, or symbolize something meaningful in life.`;
 }
 
 function setPoeticPrompts() {
-   primaryPrompt.value = `
-Describe this image through a poetic lens. 
+    primaryPrompt.value = `Describe this image through a poetic lens. 
 Use artistic and metaphorical language to capture the atmosphere, emotion, textures, colors, and the subtle energy of the scene. 
 Let your words paint the image as if it were a living poem or a moment frozen in time.`;
 
-secondaryPrompt.value = `
-Explore the deeper symbolic or emotional meaning behind the image. 
+    secondaryPrompt.value = `Explore the deeper symbolic or emotional meaning behind the image. 
 What universal truths, dreams, or inner human experiences could this scene represent? 
 Draw out abstract ideas like hope, memory, loss, wonder, or transformation — and connect them to what is visible.`;
 }
