@@ -32,6 +32,10 @@ let availableCameras = [];
 let currentFacingMode = 'environment';
 let isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+// Safari-specific detection
+let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+let isIOSSafari = isSafari && isMobileDevice;
+
 // Event Listeners
 startButton.addEventListener('click', startCamera);
 stopButton.addEventListener('click', stopCamera);
@@ -53,21 +57,55 @@ window.addEventListener('load', () => {
     }
 });
 
-// Request initial camera access to get permissions
+// Enhanced permission check for Safari
+async function checkCameraPermission() {
+    if (!navigator.permissions) {
+        // Fallback for browsers without permissions API
+        return 'prompt';
+    }
+    
+    try {
+        const permission = await navigator.permissions.query({ name: 'camera' });
+        return permission.state;
+    } catch (error) {
+        console.warn('Permission query failed:', error);
+        return 'prompt';
+    }
+}
+
+// Request initial camera access with Safari-specific handling
 async function requestInitialAccess() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
+        // For Safari iOS, be more explicit with constraints
+        const constraints = {
+            video: {
                 facingMode: isMobileDevice ? 'environment' : undefined,
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            } 
-        });
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 }
+            }
+        };
+
+        // Add audio: false explicitly for Safari
+        if (isIOSSafari) {
+            constraints.audio = false;
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         
         stream.getTracks().forEach(track => track.stop());
         return true;
     } catch (err) {
         console.error("Initial camera access denied:", err);
+        
+        // Safari-specific error handling
+        if (isIOSSafari && err.name === 'NotAllowedError') {
+            throw new Error("Camera permission denied. Please allow camera access in Safari settings.");
+        } else if (isIOSSafari && err.name === 'NotFoundError') {
+            throw new Error("No camera found. Please check your device camera.");
+        } else if (isIOSSafari && err.name === 'NotReadableError') {
+            throw new Error("Camera is being used by another app. Please close other camera apps.");
+        }
+        
         throw new Error("Camera permission required");
     }
 }
@@ -196,12 +234,20 @@ function removeFlashEffect() {
     }, 1000);
 }
 
-// Main camera start function
+// Enhanced camera start function with Safari iOS fixes
 async function startCamera() {
     try {
         statusText.textContent = 'Requesting camera permission...';
         statusOverlay.classList.remove('hidden');
         loadingSpinner.style.display = 'block';
+
+        // Check permission state first for Safari
+        if (isIOSSafari) {
+            const permissionState = await checkCameraPermission();
+            if (permissionState === 'denied') {
+                throw new Error("Camera access denied. Please enable camera in Safari Settings > Privacy & Security > Camera");
+            }
+        }
 
         // Get camera permission and devices
         await requestInitialAccess();
@@ -215,40 +261,91 @@ async function startCamera() {
         let constraints = {};
 
         if (isMobileDevice) {
-            // Mobile: try facingMode first
-            try {
-                constraints = {
-                    video: {
-                        facingMode: { ideal: currentFacingMode },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
-                
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                // Update facing mode from actual settings
-                const videoTrack = currentStream.getVideoTracks()[0];
-                const settings = videoTrack.getSettings();
-                if (settings.facingMode) {
-                    currentFacingMode = settings.facingMode;
-                }
-                
-            } catch (facingModeError) {
-                console.warn('FacingMode failed, using device selection:', facingModeError);
-                
-                // Fallback to device selection
-                selectedCamera = findBestCamera(availableCameras);
-                if (selectedCamera) {
+            // Enhanced mobile constraints for Safari
+            if (isIOSSafari) {
+                // Safari iOS specific approach - try exact facingMode first
+                try {
                     constraints = {
                         video: {
-                            deviceId: { exact: selectedCamera.deviceId },
+                            facingMode: { exact: currentFacingMode },
+                            width: { ideal: 1280, max: 1920 },
+                            height: { ideal: 720, max: 1080 }
+                        },
+                        audio: false // Explicitly disable audio for Safari
+                    };
+                    
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                } catch (exactError) {
+                    console.warn('Exact facingMode failed, trying ideal:', exactError);
+                    
+                    // Fallback to ideal facingMode
+                    constraints = {
+                        video: {
+                            facingMode: { ideal: currentFacingMode },
+                            width: { ideal: 1280, max: 1920 },
+                            height: { ideal: 720, max: 1080 }
+                        },
+                        audio: false
+                    };
+                    
+                    try {
+                        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch (idealError) {
+                        console.warn('Ideal facingMode failed, using device selection:', idealError);
+                        
+                        // Final fallback to device selection
+                        selectedCamera = findBestCamera(availableCameras);
+                        if (selectedCamera) {
+                            constraints = {
+                                video: {
+                                    deviceId: { exact: selectedCamera.deviceId },
+                                    width: { ideal: 1280, max: 1920 },
+                                    height: { ideal: 720, max: 1080 }
+                                },
+                                audio: false
+                            };
+                            
+                            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                        }
+                    }
+                }
+            } else {
+                // Original mobile logic for non-Safari
+                try {
+                    constraints = {
+                        video: {
+                            facingMode: { ideal: currentFacingMode },
                             width: { ideal: 1280 },
                             height: { ideal: 720 }
                         }
                     };
                     
                     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    // Update facing mode from actual settings
+                    const videoTrack = currentStream.getVideoTracks()[0];
+                    const settings = videoTrack.getSettings();
+                    if (settings.facingMode) {
+                        currentFacingMode = settings.facingMode;
+                    }
+                    
+                } catch (facingModeError) {
+                    console.warn('FacingMode failed, using device selection:', facingModeError);
+                    
+                    // Fallback to device selection
+                    selectedCamera = findBestCamera(availableCameras);
+                    if (selectedCamera) {
+                        constraints = {
+                            video: {
+                                deviceId: { exact: selectedCamera.deviceId },
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            }
+                        };
+                        
+                        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    }
                 }
             }
             
@@ -286,35 +383,34 @@ async function startCamera() {
             throw new Error("Failed to get camera stream");
         }
 
-        // Setup video element
+        // Enhanced video setup for Safari
         webcamFeed.srcObject = currentStream;
         
-        webcamFeed.onloadedmetadata = () => {
-            webcamFeed.play();
-            statusOverlay.classList.add('hidden');
-
-            // Enable buttons
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            analyzeNowButton.disabled = false;
-            switchCameraButton.disabled = false;
-
-            // Update status
-            const videoTrack = currentStream.getVideoTracks()[0];
-            const cameraLabel = videoTrack.label || selectedCamera?.label || "Unknown Camera";
+        // Safari requires explicit play() call and different event handling
+        if (isIOSSafari) {
+            webcamFeed.playsInline = true;
+            webcamFeed.muted = true;
             
-            if (isMobileDevice) {
-                const cameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
-                cameraStatus.textContent = `Camera: Connected (${cameraType})`;
-                const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
-                switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
-            } else {
-                cameraStatus.textContent = `Camera: Connected (${cameraLabel})`;
+            // Use loadeddata instead of loadedmetadata for Safari
+            webcamFeed.addEventListener('loadeddata', handleVideoReady, { once: true });
+            webcamFeed.addEventListener('canplay', handleVideoReady, { once: true });
+            
+            // Force play for Safari
+            try {
+                await webcamFeed.play();
+            } catch (playError) {
+                console.warn('Auto-play failed, will try on user interaction:', playError);
             }
+        } else {
+            webcamFeed.onloadedmetadata = handleVideoReady;
+        }
 
-            analysisStatus.textContent = 'Analysis: Ready';
-            loadingSpinner.style.display = 'none';
-        };
+        // Timeout fallback for Safari
+        setTimeout(() => {
+            if (webcamFeed.readyState >= 2) {
+                handleVideoReady();
+            }
+        }, 2000);
 
     } catch (error) {
         console.error('Camera startup error:', error);
@@ -322,6 +418,56 @@ async function startCamera() {
         loadingSpinner.style.display = 'none';
         cameraStatus.textContent = `Camera: Error - ${error.message}`;
         statusOverlay.classList.remove('hidden');
+        
+        // Provide Safari-specific guidance
+        if (isIOSSafari && (error.name === 'NotAllowedError' || error.message.includes('permission'))) {
+            statusText.textContent = 'Camera blocked. Go to Safari Settings > Privacy & Security > Camera and enable for this site.';
+        }
+    }
+}
+
+// Separate video ready handler
+function handleVideoReady() {
+    try {
+        if (!webcamFeed.videoWidth || !webcamFeed.videoHeight) {
+            console.warn('Video dimensions not ready, retrying...');
+            setTimeout(handleVideoReady, 500);
+            return;
+        }
+
+        webcamFeed.play().catch(e => console.warn('Play failed:', e));
+        statusOverlay.classList.add('hidden');
+
+        // Enable buttons
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        analyzeNowButton.disabled = false;
+        switchCameraButton.disabled = false;
+
+        // Update status
+        const videoTrack = currentStream.getVideoTracks()[0];
+        const cameraLabel = videoTrack.label || "Unknown Camera";
+        
+        if (isMobileDevice) {
+            // Get actual facing mode from track settings
+            const settings = videoTrack.getSettings();
+            const actualFacingMode = settings.facingMode || currentFacingMode;
+            currentFacingMode = actualFacingMode;
+            
+            const cameraType = actualFacingMode === 'user' ? 'Front' : 'Back';
+            cameraStatus.textContent = `Camera: Connected (${cameraType})`;
+            const nextCameraType = actualFacingMode === 'user' ? 'Back' : 'Front';
+            switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+        } else {
+            cameraStatus.textContent = `Camera: Connected (${cameraLabel})`;
+        }
+
+        analysisStatus.textContent = 'Analysis: Ready';
+        loadingSpinner.style.display = 'none';
+        
+    } catch (error) {
+        console.error('Video ready handler error:', error);
+        setTimeout(handleVideoReady, 1000);
     }
 }
 
@@ -355,6 +501,7 @@ async function switchCamera() {
     }
 }
 
+// Enhanced mobile camera switching for Safari
 async function switchMobileCamera() {
     if (!currentStream) return;
 
@@ -367,28 +514,48 @@ async function switchMobileCamera() {
 
         currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
 
-        const constraints = {
-            video: {
-                facingMode: { ideal: currentFacingMode },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        };
+        let constraints;
+        if (isIOSSafari) {
+            // Safari iOS specific constraints
+            constraints = {
+                video: {
+                    facingMode: { exact: currentFacingMode },
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 }
+                },
+                audio: false
+            };
+        } else {
+            constraints = {
+                video: {
+                    facingMode: { ideal: currentFacingMode },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+        }
 
-        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        try {
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (exactError) {
+            if (isIOSSafari) {
+                // Fallback to ideal for Safari
+                constraints.video.facingMode = { ideal: currentFacingMode };
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } else {
+                throw exactError;
+            }
+        }
+
         webcamFeed.srcObject = currentStream;
 
-        webcamFeed.onloadedmetadata = () => {
-            webcamFeed.play();
-            statusOverlay.classList.add('hidden');
-            loadingSpinner.style.display = 'none';
-            
-            const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
-            switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
-            
-            const currentCameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
-            cameraStatus.textContent = `Camera: Connected (${currentCameraType})`;
-        };
+        if (isIOSSafari) {
+            webcamFeed.addEventListener('loadeddata', handleSwitchReady, { once: true });
+            webcamFeed.addEventListener('canplay', handleSwitchReady, { once: true });
+            await webcamFeed.play();
+        } else {
+            webcamFeed.onloadedmetadata = handleSwitchReady;
+        }
 
     } catch (error) {
         console.error('Mobile camera switch error:', error);
@@ -402,6 +569,23 @@ async function switchMobileCamera() {
             startCamera();
         }, 1000);
     }
+}
+
+function handleSwitchReady() {
+    webcamFeed.play().catch(e => console.warn('Switch play failed:', e));
+    statusOverlay.classList.add('hidden');
+    loadingSpinner.style.display = 'none';
+    
+    const videoTrack = currentStream.getVideoTracks()[0];
+    const settings = videoTrack.getSettings();
+    const actualFacingMode = settings.facingMode || currentFacingMode;
+    currentFacingMode = actualFacingMode;
+    
+    const nextCameraType = actualFacingMode === 'user' ? 'Back' : 'Front';
+    switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+    
+    const currentCameraType = actualFacingMode === 'user' ? 'Front' : 'Back';
+    cameraStatus.textContent = `Camera: Connected (${currentCameraType})`;
 }
 
 async function switchDesktopCamera() {
