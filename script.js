@@ -20,6 +20,9 @@ const exportButton = document.getElementById('exportButton');
 const clearButton = document.getElementById('clearButton');
 const cameraSelect = document.getElementById('cameraSelect');
 const switchCameraButton = document.getElementById('switchCameraButton');
+const flashOverlay = document.getElementById('flashOverlay');
+const analysisIndicator = document.getElementById('analysisIndicator');
+const frameIndicator = document.getElementById('frameIndicator');
 
 // State
 let currentStream = null;
@@ -36,6 +39,7 @@ analyzeNowButton.addEventListener('click', analyzeNow);
 exportButton.addEventListener('click', exportToCSV);
 clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
+cameraSelect.addEventListener('change', switchCamera);
 
 // Initialize camera list on page load
 window.addEventListener('load', () => {
