@@ -26,6 +26,8 @@ let currentStream = null;
 let isAnalyzing = false;
 let responses = [];
 let availableCameras = [];
+let currentFacingMode = 'user'; // 'user' for front camera, 'environment' for back camera
+let isMobileDevice = false;
 
 // Event Listeners
 startButton.addEventListener('click', startCamera);
@@ -36,9 +38,57 @@ clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 
 // Initialize camera list on page load
-window.addEventListener('load', initializeCameras);
+window.addEventListener('load', () => {
+    // Detect mobile device
+    isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobileDevice) {
+        // On mobile, hide camera select dropdown and show simple switch button
+        cameraSelect.style.display = 'none';
+        switchCameraButton.textContent = '🔄 Switch to Back Camera';
+    } else {
+        // On desktop, show camera selection dropdown
+        initializeCameras();
+    }
+});
 
-// Camera enumeration and initialization
+
+    // Flash and pause effects
+    function triggerFlashEffect() {
+        // Flash effect
+        flashOverlay.classList.add('flash');
+        setTimeout(() => {
+            flashOverlay.classList.remove('flash');
+        }, 150);
+
+        // Pause video effect
+        webcamFeed.classList.add('analyzing');
+        
+        // Show analysis indicators
+        analysisIndicator.classList.add('active');
+        frameIndicator.classList.add('active');
+        
+        // Button effect
+        analyzeNowButton.classList.add('analyzing');
+    }
+
+    function removeFlashEffect() {
+        // Remove video pause effect
+        webcamFeed.classList.remove('analyzing');
+        
+        // Hide analysis indicators
+        analysisIndicator.classList.remove('active');
+        
+        // Remove button effect
+        analyzeNowButton.classList.remove('analyzing');
+        
+        // Hide frame indicator after delay
+        setTimeout(() => {
+            frameIndicator.classList.remove('active');
+        }, 1000);
+    }
+
+    // Camera enumeration and initialization
 async function initializeCameras() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -60,26 +110,39 @@ async function initializeCameras() {
         console.error('Error enumerating cameras:', error);
     }
 }
-
 // Camera Functions
 async function startCamera() {
     try {
         statusText.textContent = 'Requesting camera permission...';
         loadingSpinner.style.display = 'block';
 
-        const selectedCameraId = cameraSelect.value || (availableCameras.length > 0 ? availableCameras[0].deviceId : undefined);
+        let constraints;
 
-        const constraints = { 
-            video: { 
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'user'
-            } 
-        };
+        if (isMobileDevice) {
+            // Mobile device: use facingMode
+            constraints = { 
+                video: { 
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            };
+        } else {
+            // Desktop: use deviceId if available
+            const selectedCameraId = cameraSelect.value || (availableCameras.length > 0 ? availableCameras[0].deviceId : undefined);
+            
+            constraints = { 
+                video: { 
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                } 
+            };
 
-        if (selectedCameraId) {
-            constraints.video.deviceId = { exact: selectedCameraId };
-            delete constraints.video.facingMode;
+            if (selectedCameraId) {
+                constraints.video.deviceId = { exact: selectedCameraId };
+                delete constraints.video.facingMode;
+            }
         }
 
         currentStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -95,7 +158,15 @@ async function startCamera() {
             analyzeNowButton.disabled = false;
             switchCameraButton.disabled = false;
             
-            cameraStatus.textContent = 'Camera: Connected';
+            if (isMobileDevice) {
+                const cameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
+                cameraStatus.textContent = `Camera: Connected (${cameraType})`;
+                const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
+                switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+            } else {
+                cameraStatus.textContent = 'Camera: Connected';
+            }
+            
             analysisStatus.textContent = 'Analysis: Ready';
             loadingSpinner.style.display = 'none';
         };
@@ -133,6 +204,62 @@ async function switchCamera() {
         return;
     }
 
+    if (isMobileDevice) {
+        // Mobile device: toggle between front and back camera
+        await switchMobileCamera();
+    } else {
+        // Desktop: switch to selected camera from dropdown
+        await switchDesktopCamera();
+    }
+}
+
+    async function switchMobileCamera() {
+        // Stop current stream
+        currentStream.getTracks().forEach(track => track.stop());
+
+        try {
+            statusText.textContent = 'Switching camera...';
+            statusOverlay.classList.remove('hidden');
+            loadingSpinner.style.display = 'block';
+
+            // Toggle facing mode
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+            const constraints = {
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+            webcamFeed.srcObject = currentStream;
+
+            webcamFeed.onloadedmetadata = () => {
+                webcamFeed.play();
+                statusOverlay.classList.add('hidden');
+                loadingSpinner.style.display = 'none';
+                
+                // Update button text
+                const cameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
+                switchCameraButton.textContent = `🔄 Switch to ${cameraType} Camera`;
+                
+                const currentCameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
+                cameraStatus.textContent = `Camera: Connected (${currentCameraType})`;
+            };
+
+        } catch (error) {
+            console.error('Mobile camera switch error:', error);
+            statusText.textContent = `Switch error: ${error.message}`;
+            loadingSpinner.style.display = 'none';
+            cameraStatus.textContent = `Camera: Switch Error - ${error.message}`;
+            
+            // Revert facing mode on error
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        }
+    }
+async function switchDesktopCamera() {
     const selectedCameraId = cameraSelect.value;
     if (!selectedCameraId) {
         alert('Please select a camera to switch to');
@@ -166,7 +293,7 @@ async function switchCamera() {
         };
 
     } catch (error) {
-        console.error('Camera switch error:', error);
+        console.error('Desktop camera switch error:', error);
         statusText.textContent = `Switch error: ${error.message}`;
         loadingSpinner.style.display = 'none';
         cameraStatus.textContent = `Camera: Switch Error - ${error.message}`;
