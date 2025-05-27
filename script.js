@@ -24,12 +24,12 @@ const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
 
-// State
+// State variables
 let currentStream = null;
 let isAnalyzing = false;
 let responses = [];
 let availableCameras = [];
-let currentFacingMode = 'environment'; // Default to back camera
+let currentFacingMode = 'environment';
 let isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Event Listeners
@@ -41,23 +41,21 @@ clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
 
-// Initialize camera list on page load
+// Initialize on page load
 window.addEventListener('load', () => {
     if (isMobileDevice) {
         cameraSelect.style.display = 'none';
         switchCameraButton.style.display = 'inline-block';
-        const nextCamera = currentFacingMode === 'user' ? 'Back' : 'Front';
-        switchCameraButton.textContent = `🔄 Switch to ${nextCamera} Camera`;
+        switchCameraButton.textContent = '🔄 Switch to Front Camera';
     } else {
         switchCameraButton.style.display = 'none';
         initializeCameras();
     }
 });
 
-// Robust camera access strategy
+// Request initial camera access to get permissions
 async function requestInitialAccess() {
     try {
-        // Request broad access first to get permissions and device labels
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
                 facingMode: isMobileDevice ? 'environment' : undefined,
@@ -66,7 +64,6 @@ async function requestInitialAccess() {
             } 
         });
         
-        // Stop the stream immediately - we just needed permissions
         stream.getTracks().forEach(track => track.stop());
         return true;
     } catch (err) {
@@ -75,18 +72,18 @@ async function requestInitialAccess() {
     }
 }
 
-// Get labeled cameras after permission granted
+// Get cameras with labels after permission
 async function getLabeledCameras() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     return devices.filter(device => device.kind === 'videoinput');
 }
 
-// Find the best camera based on device type
+// Find best camera for device type
 function findBestCamera(cameras) {
     if (!cameras || cameras.length === 0) return null;
     
     if (isMobileDevice) {
-        // Priority 1: Look for cameras with "back", "rear", or "environment" in label
+        // Look for back camera keywords
         let backCamera = cameras.find(cam => 
             /back|rear|environment/i.test(cam.label) && 
             !/front|user/i.test(cam.label)
@@ -94,27 +91,25 @@ function findBestCamera(cameras) {
         
         if (backCamera) return backCamera;
         
-        // Priority 2: If multiple cameras, assume last one is back (common pattern)
+        // If multiple cameras, try the last one (usually back)
         if (cameras.length > 1) {
             return cameras[cameras.length - 1];
         }
         
-        // Priority 3: Look for camera without "front" or "user" in label
+        // Look for non-front camera
         let nonFrontCamera = cameras.find(cam => !/front|user/i.test(cam.label));
         if (nonFrontCamera) return nonFrontCamera;
     }
     
-    // Fallback: return first available camera
     return cameras[0];
 }
 
-// Camera enumeration for desktop
+// Initialize cameras for desktop
 async function initializeCameras() {
     try {
         await requestInitialAccess();
         availableCameras = await getLabeledCameras();
         
-        // Populate camera select dropdown
         cameraSelect.innerHTML = '<option value="">Select camera...</option>';
         availableCameras.forEach((camera, index) => {
             const option = document.createElement('option');
@@ -125,7 +120,9 @@ async function initializeCameras() {
 
         if (availableCameras.length > 0) {
             const bestCamera = findBestCamera(availableCameras);
-            cameraSelect.value = bestCamera.deviceId;
+            if (bestCamera) {
+                cameraSelect.value = bestCamera.deviceId;
+            }
         }
     } catch (error) {
         console.error('Error initializing cameras:', error);
@@ -133,50 +130,57 @@ async function initializeCameras() {
     }
 }
 
-// Enhanced flash and analysis effects
+// Enhanced flash effects
 function triggerFlashEffect() {
-    // Immediate flash effect
-    flashOverlay.style.opacity = '0.8';
-    flashOverlay.style.display = 'block';
-    
-    // Quick flash animation
-    setTimeout(() => {
-        flashOverlay.style.opacity = '0';
-    }, 100);
-    
-    setTimeout(() => {
-        flashOverlay.style.display = 'none';
-        flashOverlay.style.opacity = '0.8'; // Reset for next time
-    }, 200);
+    // Flash overlay effect
+    if (flashOverlay) {
+        flashOverlay.style.opacity = '0.8';
+        flashOverlay.style.display = 'block';
+        
+        setTimeout(() => {
+            flashOverlay.style.opacity = '0';
+        }, 100);
+        
+        setTimeout(() => {
+            flashOverlay.style.display = 'none';
+            flashOverlay.style.opacity = '0.8';
+        }, 200);
+    }
 
-    // Video pause/freeze effect
+    // Video effects
     webcamFeed.style.filter = 'grayscale(50%) brightness(1.2)';
     webcamFeed.style.transform = 'scale(1.02)';
     webcamFeed.style.transition = 'all 0.2s ease';
     
-    // Show analysis indicators with staggered animation
-    analysisIndicator.style.opacity = '1';
-    analysisIndicator.style.transform = 'scale(1)';
+    // Analysis indicators
+    if (analysisIndicator) {
+        analysisIndicator.style.opacity = '1';
+        analysisIndicator.style.transform = 'scale(1)';
+    }
     
     setTimeout(() => {
-        frameIndicator.style.opacity = '1';
-        frameIndicator.style.transform = 'scale(1)';
+        if (frameIndicator) {
+            frameIndicator.style.opacity = '1';
+            frameIndicator.style.transform = 'scale(1)';
+        }
     }, 150);
     
-    // Button visual feedback
+    // Button feedback
     analyzeNowButton.style.transform = 'scale(0.95)';
     analyzeNowButton.style.backgroundColor = '#28a745';
     analyzeNowButton.style.boxShadow = '0 0 20px rgba(40, 167, 69, 0.5)';
 }
 
 function removeFlashEffect() {
-    // Remove video effects
+    // Reset video effects
     webcamFeed.style.filter = 'none';
     webcamFeed.style.transform = 'scale(1)';
     
-    // Hide analysis indicators with fade out
-    analysisIndicator.style.opacity = '0';
-    analysisIndicator.style.transform = 'scale(0.8)';
+    // Hide indicators
+    if (analysisIndicator) {
+        analysisIndicator.style.opacity = '0';
+        analysisIndicator.style.transform = 'scale(0.8)';
+    }
     
     // Reset button
     analyzeNowButton.style.transform = 'scale(1)';
@@ -185,22 +189,22 @@ function removeFlashEffect() {
     
     // Hide frame indicator after delay
     setTimeout(() => {
-        frameIndicator.style.opacity = '0';
-        frameIndicator.style.transform = 'scale(0.8)';
+        if (frameIndicator) {
+            frameIndicator.style.opacity = '0';
+            frameIndicator.style.transform = 'scale(0.8)';
+        }
     }, 1000);
 }
 
-// Enhanced camera start function
+// Main camera start function
 async function startCamera() {
     try {
         statusText.textContent = 'Requesting camera permission...';
         statusOverlay.classList.remove('hidden');
         loadingSpinner.style.display = 'block';
 
-        // Step 1: Request initial access for permissions
+        // Get camera permission and devices
         await requestInitialAccess();
-        
-        // Step 2: Get labeled cameras
         availableCameras = await getLabeledCameras();
 
         if (availableCameras.length === 0) {
@@ -211,7 +215,7 @@ async function startCamera() {
         let constraints = {};
 
         if (isMobileDevice) {
-            // Mobile: Try facingMode first, then fallback to specific device
+            // Mobile: try facingMode first
             try {
                 constraints = {
                     video: {
@@ -223,7 +227,7 @@ async function startCamera() {
                 
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                // Get actual camera info
+                // Update facing mode from actual settings
                 const videoTrack = currentStream.getVideoTracks()[0];
                 const settings = videoTrack.getSettings();
                 if (settings.facingMode) {
@@ -231,27 +235,25 @@ async function startCamera() {
                 }
                 
             } catch (facingModeError) {
-                console.warn('FacingMode failed, trying device selection:', facingModeError);
+                console.warn('FacingMode failed, using device selection:', facingModeError);
                 
-                // Fallback: use device selection
+                // Fallback to device selection
                 selectedCamera = findBestCamera(availableCameras);
-                constraints = {
-                    video: {
-                        deviceId: { exact: selectedCamera.deviceId },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
-                
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                if (selectedCamera) {
+                    constraints = {
+                        video: {
+                            deviceId: { exact: selectedCamera.deviceId },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+                    
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                }
             }
             
-            // Update switch button
-            const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
-            switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
-            
         } else {
-            // Desktop: Use selected camera or best available
+            // Desktop: use selected or best camera
             const selectedCameraId = cameraSelect.value;
             selectedCamera = availableCameras.find(cam => cam.deviceId === selectedCameraId) || findBestCamera(availableCameras);
 
@@ -280,14 +282,18 @@ async function startCamera() {
             cameraSelect.value = selectedCamera.deviceId;
         }
 
-        // Set up video element
+        if (!currentStream) {
+            throw new Error("Failed to get camera stream");
+        }
+
+        // Setup video element
         webcamFeed.srcObject = currentStream;
         
         webcamFeed.onloadedmetadata = () => {
             webcamFeed.play();
             statusOverlay.classList.add('hidden');
 
-            // Update UI state
+            // Enable buttons
             startButton.disabled = true;
             stopButton.disabled = false;
             analyzeNowButton.disabled = false;
@@ -296,8 +302,15 @@ async function startCamera() {
             // Update status
             const videoTrack = currentStream.getVideoTracks()[0];
             const cameraLabel = videoTrack.label || selectedCamera?.label || "Unknown Camera";
-            const cameraType = isMobileDevice ? (currentFacingMode === 'user' ? 'Front' : 'Back') : '';
-            cameraStatus.textContent = `Camera: Connected ${cameraType ? `(${cameraType})` : `(${cameraLabel})`}`;
+            
+            if (isMobileDevice) {
+                const cameraType = currentFacingMode === 'user' ? 'Front' : 'Back';
+                cameraStatus.textContent = `Camera: Connected (${cameraType})`;
+                const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
+                switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
+            } else {
+                cameraStatus.textContent = `Camera: Connected (${cameraLabel})`;
+            }
 
             analysisStatus.textContent = 'Analysis: Ready';
             loadingSpinner.style.display = 'none';
@@ -312,6 +325,7 @@ async function startCamera() {
     }
 }
 
+// Stop camera function
 function stopCamera() {
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -319,10 +333,8 @@ function stopCamera() {
         currentStream = null;
     }
     
-    // Reset any visual effects
     removeFlashEffect();
     
-    // Update UI
     statusOverlay.classList.remove('hidden');
     statusText.textContent = 'Click "Start Camera" to begin';
     startButton.disabled = false;
@@ -334,7 +346,7 @@ function stopCamera() {
     analysisStatus.textContent = 'Analysis: Stopped';
 }
 
-// Unified switch camera function
+// Switch camera function
 async function switchCamera() {
     if (isMobileDevice) {
         await switchMobileCamera();
@@ -351,10 +363,8 @@ async function switchMobileCamera() {
         statusOverlay.classList.remove('hidden');
         loadingSpinner.style.display = 'block';
 
-        // Stop current stream
         currentStream.getTracks().forEach(track => track.stop());
 
-        // Toggle facing mode
         currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
 
         const constraints = {
@@ -373,7 +383,6 @@ async function switchMobileCamera() {
             statusOverlay.classList.add('hidden');
             loadingSpinner.style.display = 'none';
             
-            // Update button text
             const nextCameraType = currentFacingMode === 'user' ? 'Back' : 'Front';
             switchCameraButton.textContent = `🔄 Switch to ${nextCameraType} Camera`;
             
@@ -387,10 +396,8 @@ async function switchMobileCamera() {
         loadingSpinner.style.display = 'none';
         cameraStatus.textContent = `Camera: Switch Error - ${error.message}`;
         
-        // Revert facing mode on error
         currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
         
-        // Try to restart with original camera
         setTimeout(() => {
             startCamera();
         }, 1000);
@@ -411,7 +418,6 @@ async function switchDesktopCamera() {
         statusOverlay.classList.remove('hidden');
         loadingSpinner.style.display = 'block';
 
-        // Stop current stream
         currentStream.getTracks().forEach(track => track.stop());
 
         const constraints = {
@@ -443,7 +449,7 @@ async function switchDesktopCamera() {
     }
 }
 
-// Analysis Functions
+// Analysis functions
 function analyzeNow() {
     if (!isAnalyzing) {
         analyzeFrame();
@@ -472,10 +478,8 @@ async function analyzeFrame() {
 
     isAnalyzing = true;
     
-    // Trigger enhanced flash effect
     triggerFlashEffect();
     
-    // Update UI
     analyzeNowButton.disabled = true;
     analysisStatus.textContent = 'Analysis: Processing...';
 
@@ -504,7 +508,6 @@ async function analyzeFrame() {
 
         const data = await response.json();
         
-        // Add to responses
         const responseEntry = {
             timestamp: new Date().toLocaleString(),
             primaryPrompt: primaryPrompt.value.trim(),
@@ -536,7 +539,6 @@ async function analyzeFrame() {
         analyzeNowButton.disabled = false;
         analysisStatus.textContent = 'Analysis: Ready';
         
-        // Remove flash effects after delay
         setTimeout(() => {
             removeFlashEffect();
         }, 1500);
