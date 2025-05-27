@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
+ <div class="container">
         <div class="header">
             <h1>AI Vision Stream</h1>
             <p>Real-time dual-analysis of camera feed with ChatGPT</p>
@@ -28,10 +28,19 @@
                     </div>
                 </div>
 
+                <div class="camera-controls">
+                    <div class="camera-switch">
+                        <label for="cameraSelect">Camera:</label>
+                        <select id="cameraSelect">
+                            <option value="">Select camera...</option>
+                        </select>
+                    </div>
+                    <button id="switchCameraButton" class="btn secondary" disabled>🔄 Switch</button>
+                </div>
+
                 <div class="controls">
                     <button id="startButton" class="btn primary">Start Camera</button>
                     <button id="stopButton" class="btn danger" disabled>Stop Camera</button>
-                    <button id="toggleAnalysisButton" class="btn warning" disabled>Start Auto Analysis</button>
                     <button id="analyzeNowButton" class="btn success" disabled>Analyze Now</button>
                 </div>
 
@@ -49,6 +58,14 @@
 
             <div class="prompts-section">
                 <h3 style="margin-bottom: 20px; color: #495057;">Analysis Prompts</h3>
+                
+                <div class="preset-buttons">
+                    <button class="preset-btn repair" onclick="setRepairPrompts()">🔧 Repair</button>
+                    <button class="preset-btn nickname" onclick="setNicknamePrompts()">🏷️ Nickname</button>
+                    <button class="preset-btn identify" onclick="setIdentifyPrompts()">🔍 Identify</button>
+                    <button class="preset-btn nice" onclick="setNicePrompts()">😊 Nice</button>
+                    <button class="preset-btn poetic" onclick="setPoeticPrompts()">📝 Poetic</button>
+                </div>
                 
                 <div class="prompt-group">
                     <label for="primaryPrompt">Primary Analysis Prompt:</label>
