@@ -394,28 +394,85 @@ async function analyzeFrame() {
 
 // Preset prompt functions
 function setRepairPrompts() {
-    primaryPrompt.value = "Examine this image for any broken, damaged, or malfunctioning items. Identify what needs repair, maintenance, or replacement. Focus on visible wear, cracks, loose parts, or anything that appears to be in poor condition.";
-    secondaryPrompt.value = "Based on the identified repair needs, suggest specific repair methods, tools required, estimated difficulty level, and safety precautions. Also estimate if this is a DIY task or requires professional help.";
+primaryPrompt.value = `
+Analyze this image for any broken, damaged, or malfunctioning items. 
+Focus on objects showing signs of wear, cracks, rust, missing parts, loose connections, discoloration, or other visible issues.
+
+For each damaged item you identify, return a JSON object with the following fields:
+
+{
+  "serialNumber": "if visible or label-based, else null",
+  "manufacturer": "if identifiable, else null",
+  "itemType": "short description of the item",
+  "color": "dominant color(s) of the item",
+  "size": "rough size or dimension if inferable",
+  "damageDescription": "what appears to be broken or worn",
+  "mostLikelyCause": "best guess at what caused the issue",
+  "secondLikelyCause": "what else could have caused the issue",
+  "canBeRepaired": true,
+  "estimatedRepairCostUSD": "in dollars",
+  "skillRequired": "beginner | intermediate | expert",
+  "estimatedRepairTimeHours": "estimate in hours and min"
+}
+
+Return your findings as an array of such JSON objects, one per damaged item. 
+Do not include any additional text or explanation — just the JSON array.
+`;
+
+    secondaryPrompt.value = `For each identified issue, suggest a specific repair method, required tools, estimated skill level, and safety precautions. 
+Clearly indicate whether the task is suitable for DIY or should be handled by a professional. 
+Keep the tone informative and practical, and avoid unnecessary assumptions. if nothing appears broken it might be an electrical issue.`;
 }
 
 function setNicknamePrompts() {
-    primaryPrompt.value = "Look at the people, objects, or pets in this image and describe their most distinctive or memorable features. Focus on unique characteristics, expressions, poses, or anything that stands out about their appearance or behavior.";
-    secondaryPrompt.value = "Based on the distinctive features you identified, suggest creative and fun nicknames that capture the essence of what you see. Explain why each nickname fits and what makes it memorable or amusing.";
+   primaryPrompt.value = `
+Observe the people, pets, or objects in this image and describe their most unique and defining characteristics. 
+Focus on expressions, poses, clothing, accessories, body language, or behavior that makes them stand out. 
+Write as if you're introducing them to someone else, using vivid and playful descriptions.`;
+
+secondaryPrompt.value = `
+Create fun, creative nicknames based on the traits you identified. 
+Explain why each nickname fits the subject’s look or personality. 
+Aim for memorable and amusing names that reflect who or what they appear to be, like you're naming a character in a story.`;
+
 }
 
 function setIdentifyPrompts() {
-    primaryPrompt.value = "Carefully identify and catalog everything visible in this image. List all objects, people, animals, text, brands, locations, activities, and any other identifiable elements. Be as specific and detailed as possible.";
-    secondaryPrompt.value = "Provide additional context about the identified items, including their likely purpose, origin, value, or significance. Mention any relationships between objects or suggest what story this scene might tell.";
+   primaryPrompt.value = `
+Examine the image closely and list every identifiable element you can see. 
+Include people, animals, objects, environments, text, logos, symbols, and activities. 
+Be specific — describe each item’s appearance, approximate location in the frame, and any notable details. 
+Treat it like you're logging a scene for an investigator or cataloger.`;
+
+secondaryPrompt.value = `
+For each identified element, explain its likely role, significance, origin, or function. 
+Describe how these items relate to each other or suggest the overall context or story the scene may represent. 
+Aim to build a narrative or scene analysis from the cataloged components.`;
+
 }
 
 function setNicePrompts() {
-    primaryPrompt.value = "Focus on all the positive, beautiful, heartwarming, or pleasant aspects of this image. Highlight anything that brings joy, shows kindness, demonstrates skill, or creates a positive atmosphere. Emphasize the good things you can observe.";
-    secondaryPrompt.value = "Elaborate on why these positive elements are meaningful or special. Suggest how this scene might inspire others, what emotions it evokes, or what life lessons or beautiful moments it represents.";
+   primaryPrompt.value = `
+Describe all the positive, joyful, or uplifting aspects of this image. 
+Focus on signs of kindness, beauty, peace, creativity, or emotional warmth. 
+Highlight anything that might make someone smile, feel inspired, or appreciate life more.`;
+
+secondaryPrompt.value = `
+Expand on why these positive elements matter. 
+Describe the emotions they evoke, what makes them special, and how they might resonate with viewers. 
+Suggest how this image could teach a lesson, spark gratitude, or symbolize something meaningful in life.`;
 }
 
 function setPoeticPrompts() {
-    primaryPrompt.value = "Describe this image in a poetic and artistic manner. Use vivid imagery, metaphors, and creative language to paint a literary picture of what you see. Focus on mood, atmosphere, colors, textures, and the emotional essence of the scene.";
-    secondaryPrompt.value = "Continue the poetic analysis by exploring deeper themes, symbolism, or philosophical meanings that could be drawn from this image. Consider what stories, dreams, or universal human experiences this scene might represent.";
+   primaryPrompt.value = `
+Describe this image through a poetic lens. 
+Use artistic and metaphorical language to capture the atmosphere, emotion, textures, colors, and the subtle energy of the scene. 
+Let your words paint the image as if it were a living poem or a moment frozen in time.`;
+
+secondaryPrompt.value = `
+Explore the deeper symbolic or emotional meaning behind the image. 
+What universal truths, dreams, or inner human experiences could this scene represent? 
+Draw out abstract ideas like hope, memory, loss, wonder, or transformation — and connect them to what is visible.`;
 }
 
 // Display and utility functions
