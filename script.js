@@ -811,7 +811,7 @@ function setMarketable() {
      on a platform like Facebook Marketplace. Focus on benefits, general use, and what makes this item worth buying. Keep the tone approachable.`;
 
     secondaryPrompt.value = `Add a short attention-grabbing sentence or headline that could help the listing stand out. 
-    Include urgency if appropriate (e.g., “Great deal – priced to sell!” or “Hard to find, don’t miss out!”), and reinforce the condition and value.`;
+    Include urgency if appropriate (e.g., “Great deal  priced to sell!” or “Hard to find, dont miss out!”), and reinforce the condition and value.`;
 }
 
 
