@@ -1,0 +1,30 @@
+{
+  "name": "snapview-worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "itty-router": "^4.2.2",
+    "jose": "^5.10.0",
+    "stripe": "^14.25.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "main": "script.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kedster/snapview.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kedster/snapview/issues"
+  },
+  "homepage": "https://github.com/kedster/snapview#readme",
+  "description": ""
+}
