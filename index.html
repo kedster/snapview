@@ -4,106 +4,152 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapView - Dual Analysis</title>
-    <link id="mainStylesheet" rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
- <div class="container">
-        <div class="header">
-            <h1>SnapView</h1>
-            <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+    <!-- Main Camera View -->
+    <div class="camera-view" id="cameraView">
+        <div class="video-container">
+            <video id="webcamFeed" autoplay playsinline muted></video>
+            <canvas id="captureCanvas"></canvas>
+            <div id="flashOverlay" class="flash-overlay"></div>
+            <div id="analysisIndicator" class="analysis-indicator">Analyzing</div>
+            
+            <div id="statusOverlay" class="status-overlay">
+                <div>
+                    <div id="statusText">Tap "Start Camera" to begin</div>
+                    <div id="loadingSpinner" class="loading" style="display: none;"></div>
+                </div>
+            </div>
         </div>
 
-        <div class="main-content">
-            <div class="video-section">
-                <h3 style="margin-bottom: 20px; color: #495057;">Camera Feed</h3>
-                
-                <div class="video-container">
-                    <video id="webcamFeed" autoplay playsinline muted></video>
-                    <canvas id="captureCanvas"></canvas>
-                    <div id="flashOverlay" class="flash-overlay"></div>
-                    <div id="statusOverlay" class="status-overlay">
-                        <div>
-                            <div id="statusText">Click "Start Camera" to begin</div>
-                            <div id="loadingSpinner" class="loading" style="display: none; margin: 10px auto;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="camera-controls">
-                    <div class="camera-switch">
-                        <label for="cameraSelect">Camera:</label>
-                        <select id="cameraSelect">
-                            <option value="">Select camera...</option>
-                        </select>
-                    </div>
-                    <button id="switchCameraButton" class="btn secondary" disabled>🔄 Switch</button>
-                </div>
-
-                <div class="controls">
-                    <button id="startButton" class="btn primary">Start Camera</button>
-                    <button id="stopButton" class="btn danger" disabled>Stop Camera</button>
-                    <button id="analyzeNowButton" class="btn success" disabled>Analyze Now</button>
-                </div>
-
-
+        <!-- Top overlay -->
+        <div class="top-overlay">
+            <div class="top-left">
+                <div class="app-title">SnapView</div>
                 <div class="status-info">
-                    <div id="cameraStatus">Camera: Disconnected</div>
-                    <div id="analysisStatus">Analysis: Stopped</div>
+                    <div class="status-item" id="cameraStatus">Camera: Disconnected</div>
+                    <div class="status-item" id="analysisStatus">Analysis: Stopped</div>
                 </div>
             </div>
+            <div class="top-right">
+                <button class="overlay-btn" id="settingsBtn" title="Prompts">⚙️</button>
+                <button class="overlay-btn" id="switchCameraBtn" title="Switch Camera" disabled>🔄</button>
+            </div>
+        </div>
 
-            <div class="prompts-section">
-                <h3 style="margin-bottom: 20px; color: #495057;">Analysis Prompts</h3>
-                
-                <div class="preset-buttons">
-                    <button class="preset-btn repair" onclick="setRepairPrompts()">🔧 Repair</button>
-                    <button class="preset-btn nickname" onclick="setNicknamePrompts()">🏷️ Nickname</button>
-                    <button class="preset-btn identify" onclick="setIdentifyPrompts()">🔍 Identify</button>
-                    <button class="preset-btn nice" onclick="setNicePrompts()">😊 Nice</button>
-                    <button class="preset-btn poetic" onclick="setPoeticPrompts()">📝 Poetic</button>
-                    <button class="preset-btn ForSale" onclick="setForSale()">💰 For Sale</button>
-                    <button class="preset-btn Marketable" onclick="setMarketable()">📢 Marketable</button>
+        <!-- Bottom overlay -->
+        <div class="bottom-overlay">
+            <!-- Quick presets -->
+            <div class="preset-controls">
+                <button class="preset-btn" data-preset="repair">🔧 Repair</button>
+                <button class="preset-btn" data-preset="nickname">🏷️ Nickname</button>
+                <button class="preset-btn" data-preset="identify">🔍 Identify</button>
+                <button class="preset-btn" data-preset="nice">😊 Nice</button>
+                <button class="preset-btn" data-preset="poetic">📝 Poetic</button>
+                <button class="preset-btn" data-preset="forsale">💰 For Sale</button>
+            </div>
+
+            <!-- Main controls -->
+            <div class="camera-controls">
+                <div class="side-controls">
+                    <button class="overlay-btn" id="startBtn">▶️</button>
+                    <button class="overlay-btn" id="stopBtn" disabled>⏹️</button>
                 </div>
                 
-                <div class="prompt-group">
-                    <label for="primaryPrompt">Primary Analysis Prompt:</label>
-                    <textarea id="primaryPrompt" placeholder="Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.">Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.</textarea>
-                </div>
-
-                <div class="prompt-group">
-                    <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
-                    <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
+                <button class="main-analyze-btn" id="analyzeBtn" disabled>
+                    📸
+                </button>
+                
+                <div class="side-controls">
+                    <button class="overlay-btn" id="resultsBtn" disabled>📊</button>
+                    <button class="overlay-btn" id="exportBtn" disabled>💾</button>
                 </div>
             </div>
         </div>
 
-        <div class="responses-table">
-            <div class="table-header">
-                <h3>Analysis History</h3>
-                <div class="table-controls">
-                    <button id="exportButton" class="btn primary" disabled>Export CSV</button>
-                    <button id="clearButton" class="btn danger">Clear History</button>
-                </div>
-            </div>
-            <div class="table-content" id="responsesList">
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    No analyses yet. Start the camera and begin analysis to see results here.
-                </div>
+        <div class="swipe-indicator">
+            <span>Swipe left for results</span>
+            <span class="swipe-arrow">→</span>
+        </div>
+    </div>
+
+    <!-- Results View -->
+    <div class="results-view" id="resultsView">
+        <div class="results-header">
+            <div class="results-title">Analysis Results</div>
+            <button class="back-btn" id="backBtn">← Back</button>
+        </div>
+        <div class="results-content" id="resultsContent">
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.8);">
+                No analyses yet. Start the camera and analyze to see results here.
             </div>
         </div>
     </div>
 
-  <script src="script.js"></script>
-  <script>
-  if (location.search.includes('dev')) {
-    const links = document.querySelectorAll('link[rel="stylesheet"]');
-    links.forEach(link => {
-      const url = new URL(link.href);
-      url.searchParams.set('v', Date.now()); // force unique each load
-      link.href = url.toString();
-    });
-  }
-</script>
+    <!-- Prompt Overlay -->
+    <div class="prompt-overlay" id="promptOverlay">
+        <div class="prompt-panel">
+            <h3>Analysis Prompts</h3>
+            
+            <div class="prompt-group">
+                <label for="primaryPrompt">Primary Analysis Prompt:</label>
+                <textarea id="primaryPrompt" placeholder="Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.">Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.</textarea>
+            </div>
 
+            <div class="prompt-group">
+                <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
+                <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
+            </div>
+
+            <div class="prompt-actions">
+                <button class="btn secondary" id="cancelPromptBtn">Cancel</button>
+                <button class="btn primary" id="savePromptBtn">Save</button>
+            </div>
+        </div>
+    </div>
+    <!-- Settings Overlay -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-panel">
+            <h3>Settings</h3>
+            <div class="setting-item">
+                <label for="cameraSelect">Camera:</label>
+                <select id="cameraSelect"></select>
+            </div>
+            <div class="setting-item">
+                <label for="resolutionSelect">Resolution:</label>
+                <select id="resolutionSelect">
+                    <option value="640x480">640x480</option>
+                    <option value="1280x720">1280x720</option>
+                    <option value="1920x1080">1920x1080</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="fpsSelect">FPS:</label>
+                <select id="fpsSelect">
+                    <option value="15">15 FPS</option>
+                    <option value="30" selected>30 FPS</option>
+                    <option value="60">60 FPS</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="modelSelect">Model:</label>
+                <select id="modelSelect">
+                    <option value="default">Default Model</option>
+                    <!-- Additional models can be added here -->
+                </select>
+            </div>
+
+            <button class="btn primary" id="saveSettingsBtn">Save Settings</button>
+            <button class="btn secondary" id="closeSettingsBtn">Close</button>
+        </div>
+    </div>
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner"></div>
+    </div>
+    <!-- Scripts -->
+    <script src="scripts.js"></script>
+    
 </body>
 </html>
