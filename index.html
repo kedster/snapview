@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Main Camera View -->
+   <!-- Main Camera View -->
     <div class="camera-view" id="cameraView">
         <div class="video-container">
             <video id="webcamFeed" autoplay playsinline muted></video>
@@ -17,7 +17,8 @@
             
             <div id="statusOverlay" class="status-overlay">
                 <div>
-                    <div id="statusText">Tap "Start Camera" to begin</div>
+                    <div id="statusText">Ready to start camera</div>
+                    <button id="startCameraBtn" class="start-camera-btn">Start Camera</button>
                     <div id="loadingSpinner" class="loading" style="display: none;"></div>
                 </div>
             </div>
@@ -29,7 +30,7 @@
                 <div class="app-title">SnapView</div>
                 <div class="status-info">
                     <div class="status-item" id="cameraStatus">Camera: Disconnected</div>
-                    <div class="status-item" id="analysisStatus">Analysis: Stopped</div>
+                    <div class="status-item" id="analysisStatus">Analysis: Ready</div>
                 </div>
             </div>
             <div class="top-right">
@@ -53,7 +54,7 @@
             <!-- Main controls -->
             <div class="camera-controls">
                 <div class="side-controls">
-                    <button class="overlay-btn" id="startBtn">▶️</button>
+                    <button class="overlay-btn" id="startBtn" disabled>▶️</button>
                     <button class="overlay-btn" id="stopBtn" disabled>⏹️</button>
                 </div>
                 
@@ -108,48 +109,6 @@
             </div>
         </div>
     </div>
-    <!-- Settings Overlay -->
-    <div class="settings-overlay" id="settingsOverlay">
-        <div class="settings-panel">
-            <h3>Settings</h3>
-            <div class="setting-item">
-                <label for="cameraSelect">Camera:</label>
-                <select id="cameraSelect"></select>
-            </div>
-            <div class="setting-item">
-                <label for="resolutionSelect">Resolution:</label>
-                <select id="resolutionSelect">
-                    <option value="640x480">640x480</option>
-                    <option value="1280x720">1280x720</option>
-                    <option value="1920x1080">1920x1080</option>
-                </select>
-            </div>
-            <div class="setting-item">
-                <label for="fpsSelect">FPS:</label>
-                <select id="fpsSelect">
-                    <option value="15">15 FPS</option>
-                    <option value="30" selected>30 FPS</option>
-                    <option value="60">60 FPS</option>
-                </select>
-            </div>
-            <div class="setting-item">
-                <label for="modelSelect">Model:</label>
-                <select id="modelSelect">
-                    <option value="default">Default Model</option>
-                    <!-- Additional models can be added here -->
-                </select>
-            </div>
-
-            <button class="btn primary" id="saveSettingsBtn">Save Settings</button>
-            <button class="btn secondary" id="closeSettingsBtn">Close</button>
-        </div>
-    </div>
-    <!-- Loading Spinner -->
-    <div class="loading-spinner" id="loadingSpinner">
-        <div class="spinner"></div>
-    </div>
-    <!-- Scripts -->
-    <script src="scripts.js"></script>
-
+    <script src="script.js"></script>
 </body>
 </html>

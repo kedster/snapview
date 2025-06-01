@@ -541,3 +541,201 @@
             statusText.textContent = 'Video playback error';
             cameraStatus.textContent = 'Camera: Error';
         });
+          analyzeBtn.disabled = false;
+                analysisIndicator.classList.remove('active');
+                
+                setTimeout(() => {
+                    if (analysisStatus.textContent.includes('Complete') || analysisStatus.textContent.includes('Error')) {
+                        analysisStatus.textContent = 'Analysis: Ready';
+                    }
+                }, 3000);
+            }
+        }
+
+        function updateResultsView() {
+            if (responses.length === 0) {
+                resultsContent.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.8);">
+                        No analyses yet. Start the camera and analyze to see results here.
+                    </div>
+                `;
+                return;
+            }
+
+            resultsContent.innerHTML = responses.map((response, index) => `
+                <div class="response-entry">
+                    <div class="response-header">
+                        <div>Analysis #${responses.length - index}</div>
+                        <div style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">
+                            ${new Date(response.timestamp).toLocaleString()}
+                        </div>
+                    </div>
+                    
+                    <div class="primary-response">
+                        <div class="response-label">Primary Analysis</div>
+                        <div class="response-text">${response.primaryResponse}</div>
+                    </div>
+                    
+                    <div class="secondary-response">
+                        <div class="response-label">Follow-up Analysis</div>
+                        <div class="response-text">${response.secondaryResponse}</div>
+                    </div>
+                    
+                    <div style="padding: 10px 20px; background: rgba(0,0,0,0.05); font-size: 0.8rem; color: #666;">
+                        <div><strong>Primary Prompt:</strong> ${response.primaryPrompt}</div>
+                        <div style="margin-top: 5px;"><strong>Secondary Prompt:</strong> ${response.secondaryPrompt}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportToCSV() {
+            if (responses.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const csvHeaders = [
+                'Timestamp',
+                'Primary Prompt',
+                'Secondary Prompt', 
+                'Primary Response',
+                'Secondary Response'
+            ];
+
+            const csvRows = responses.map(response => [
+                response.timestamp,
+                `"${response.primaryPrompt.replace(/"/g, '""')}"`,
+                `"${response.secondaryPrompt.replace(/"/g, '""')}"`,
+                `"${response.primaryResponse.replace(/"/g, '""')}"`,
+                `"${response.secondaryResponse.replace(/"/g, '""')}"`
+            ]);
+
+            const csvContent = [csvHeaders.join(','), ...csvRows.map(row => row.join(','))].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `snapview-analysis-${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function setPreset(preset) {
+            const presets = {
+                repair: {
+                    primary: "Analyze this image for any broken, damaged, or malfunctioning items. Describe what needs repair or maintenance.",
+                    secondary: "Provide specific repair suggestions, estimated difficulty level, and safety considerations for fixing the identified issues."
+                },
+                nickname: {
+                    primary: "Look at this image and create a fun, memorable nickname for the main subject or scene based on what you observe.",
+                    secondary: "Explain why this nickname fits and suggest 2-3 alternative nicknames with brief explanations."
+                },
+                identify: {
+                    primary: "Identify and name all the objects, people, animals, or items visible in this image. Be as specific as possible.",
+                    secondary: "Provide additional context about the identified items - their purpose, typical uses, or interesting facts about them."
+                },
+                nice: {
+                    primary: "Focus on the positive, beautiful, or pleasant aspects of what you see in this image. What makes this scene nice or appealing?",
+                    secondary: "Share some uplifting observations or compliments about the scene, and suggest what might make it even better."
+                },
+                poetic: {
+                    primary: "Describe this image in a poetic, artistic way. Use vivid imagery and emotional language to paint a picture with words.",
+                    secondary: "Write a short poem or haiku inspired by this scene, capturing its essence and mood."
+                },
+                forsale: {
+                    primary: "Analyze this image as if you're writing a sales listing. Describe the item(s) condition, features, and selling points.",
+                    secondary: "Suggest a fair market price range, highlight key selling features, and identify the target buyer for this item."
+                }
+            };
+
+            if (presets[preset]) {
+                primaryPrompt.value = presets[preset].primary;
+                secondaryPrompt.value = presets[preset].secondary;
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if camera is available
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusText.textContent = 'Camera not supported on this device';
+                startBtn.disabled = true;
+                return;
+            }
+
+            // Set initial status
+            cameraStatus.textContent = 'Camera: Ready';
+            analysisStatus.textContent = 'Analysis: Stopped';
+            
+            // Load saved prompts if any
+            const savedPrimary = localStorage.getItem('snapview-primary-prompt');
+            const savedSecondary = localStorage.getItem('snapview-secondary-prompt');
+            
+            if (savedPrimary) primaryPrompt.value = savedPrimary;
+            if (savedSecondary) secondaryPrompt.value = savedSecondary;
+            
+            // Save prompts when changed
+            primaryPrompt.addEventListener('input', () => {
+                localStorage.setItem('snapview-primary-prompt', primaryPrompt.value);
+            });
+            
+            secondaryPrompt.addEventListener('input', () => {
+                localStorage.setItem('snapview-secondary-prompt', secondaryPrompt.value);
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName.toLowerCase() === 'textarea') return;
+            
+            switch(e.key.toLowerCase()) {
+                case ' ':
+                    e.preventDefault();
+                    if (!analyzeBtn.disabled) analyzeNow();
+                    break;
+                case 'r':
+                    if (!resultsBtn.disabled) showResults();
+                    break;
+                case 'c':
+                    showCamera();
+                    break;
+                case 's':
+                    if (!startBtn.disabled) startCamera();
+                    else if (!stopBtn.disabled) stopCamera();
+                    break;
+                case 'p':
+                    showPromptOverlay();
+                    break;
+            }
+        });
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && currentStream) {
+                // Pause video when tab is hidden to save resources
+                webcamFeed.pause();
+            } else if (!document.hidden && currentStream) {
+                // Resume video when tab is visible
+                webcamFeed.play();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (currentStream && webcamFeed.videoWidth) {
+                // Adjust canvas size if needed
+                captureCanvas.width = webcamFeed.videoWidth;
+                captureCanvas.height = webcamFeed.videoHeight;
+            }
+        });
+
+        // Error handling for video element
+        webcamFeed.addEventListener('error', (e) => {
+            console.error('Video error:', e);
+            statusText.textContent = 'Video playback error';
+            cameraStatus.textContent = 'Camera: Error';
+        });

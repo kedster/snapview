@@ -1,4 +1,4 @@
-        * {
+      * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -24,6 +24,7 @@
             align-items: center;
             justify-content: center;
             z-index: 1;
+            touch-action: pan-x;
         }
 
         .video-container {
@@ -57,14 +58,14 @@
             z-index: 10;
         }
 
-        /* Status overlay for loading */
+        /* Status overlay for initial setup */
         .status-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
             display: flex;
             flex-direction: column;
@@ -73,11 +74,36 @@
             font-size: 1.2rem;
             text-align: center;
             z-index: 15;
+            transition: opacity 0.3s ease;
         }
 
         .status-overlay.hidden {
             opacity: 0;
             pointer-events: none;
+        }
+
+        .start-camera-btn {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(81, 207, 102, 0.4);
+        }
+
+        .start-camera-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(81, 207, 102, 0.6);
+        }
+
+        .start-camera-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         /* Top overlay bar */
@@ -473,11 +499,6 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-
-        /* Touch gestures */
-        .camera-view {
-            touch-action: pan-x;
         }
 
         /* Desktop responsive */
