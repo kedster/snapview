@@ -1,6 +1,16 @@
 // Configuration - REPLACE WITH YOUR CLOUDFLARE WORKER URL
 const WORKER_URL = 'backend-worker.sethkeddy.workers.dev';
 
+// Google OAuth Configuration - Replace with your actual client ID
+const GOOGLE_CLIENT_ID = 'your-google-client-id.apps.googleusercontent.com';
+
+// Demo mode for testing (set to false in production)
+const DEMO_MODE = true;
+
+// Authentication state
+let currentUser = null;
+let authInitialized = false;
+
 // DOM Elements
 const webcamFeed = document.getElementById('webcamFeed');
 const captureCanvas = document.getElementById('captureCanvas');
@@ -24,6 +34,13 @@ const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
 
+// Auth DOM elements
+const signInButton = document.getElementById('signInButton');
+const userProfile = document.getElementById('userProfile');
+const userAvatar = document.getElementById('userAvatar');
+const userName = document.getElementById('userName');
+const signOutButton = document.getElementById('signOutButton');
+
 // State variables
 let currentStream = null;
 let isAnalyzing = false;
@@ -44,6 +61,7 @@ exportButton.addEventListener('click', exportToCSV);
 clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
+signOutButton.addEventListener('click', signOut);
 
 // Initialize on page load
 window.addEventListener('load', () => {
@@ -55,7 +73,197 @@ window.addEventListener('load', () => {
         switchCameraButton.style.display = 'none';
         initializeCameras();
     }
+    
+    // Initialize Google Auth
+    initializeGoogleAuth();
+    
+    // Load saved auth state
+    loadAuthState();
 });
+
+// Google Authentication Functions
+function initializeGoogleAuth() {
+    if (DEMO_MODE) {
+        // Demo mode - create a simple sign-in button
+        signInButton.innerHTML = `
+            <button id="demoSignInBtn" class="demo-signin-btn">
+                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" width="20" height="20">
+                Sign in with Google (Demo)
+            </button>
+        `;
+        signInButton.style.display = 'block';
+        
+        document.getElementById('demoSignInBtn').addEventListener('click', () => {
+            // Simulate successful Google authentication
+            simulateGoogleSignIn();
+        });
+        
+        authInitialized = true;
+        return;
+    }
+    
+    // Production mode - use actual Google Identity Services
+    if (typeof google !== 'undefined' && google.accounts) {
+        authInitialized = true;
+        
+        // Initialize Google Sign-In
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+        });
+
+        // Render the sign-in button
+        google.accounts.id.renderButton(signInButton, {
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            width: 200
+        });
+        
+        signInButton.style.display = 'block';
+    } else {
+        // Retry after a short delay if Google services aren't loaded yet
+        setTimeout(initializeGoogleAuth, 100);
+    }
+}
+
+function simulateGoogleSignIn() {
+    // Simulate a successful Google sign-in for demo purposes
+    currentUser = {
+        id: 'demo_user_123',
+        name: 'Demo User',
+        email: 'demo@example.com',
+        picture: 'https://via.placeholder.com/32x32/667eea/white?text=DU'
+    };
+    
+    // Save auth state
+    saveAuthState();
+    
+    // Update UI
+    updateAuthUI();
+    
+    console.log('Demo user signed in:', currentUser.name);
+}
+
+function handleCredentialResponse(response) {
+    try {
+        // Decode the JWT token to get user info
+        const userInfo = parseJwtPayload(response.credential);
+        
+        currentUser = {
+            id: userInfo.sub,
+            name: userInfo.name,
+            email: userInfo.email,
+            picture: userInfo.picture,
+            credential: response.credential
+        };
+        
+        // Save auth state
+        saveAuthState();
+        
+        // Update UI
+        updateAuthUI();
+        
+        console.log('User signed in:', currentUser.name);
+    } catch (error) {
+        console.error('Error handling credential response:', error);
+    }
+}
+
+function parseJwtPayload(token) {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+}
+
+function updateAuthUI() {
+    if (currentUser) {
+        // Show user profile, hide sign-in button
+        userAvatar.src = currentUser.picture;
+        userName.textContent = currentUser.name;
+        userProfile.style.display = 'flex';
+        signInButton.style.display = 'none';
+    } else {
+        // Show sign-in button, hide user profile
+        userProfile.style.display = 'none';
+        if (authInitialized) {
+            signInButton.style.display = 'block';
+        }
+    }
+}
+
+function signOut() {
+    if (confirm('Are you sure you want to sign out?')) {
+        currentUser = null;
+        
+        // Clear saved auth state
+        localStorage.removeItem('snapview_auth');
+        sessionStorage.removeItem('snapview_auth');
+        
+        // Update UI
+        updateAuthUI();
+        
+        // Sign out from Google
+        if (typeof google !== 'undefined' && google.accounts) {
+            google.accounts.id.disableAutoSelect();
+        }
+        
+        console.log('User signed out');
+    }
+}
+
+function saveAuthState() {
+    if (currentUser) {
+        const authData = {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            picture: currentUser.picture,
+            timestamp: Date.now()
+        };
+        
+        // Save to both localStorage and sessionStorage for flexibility
+        localStorage.setItem('snapview_auth', JSON.stringify(authData));
+        sessionStorage.setItem('snapview_auth', JSON.stringify(authData));
+    }
+}
+
+function loadAuthState() {
+    try {
+        // Try sessionStorage first, then localStorage
+        let authData = sessionStorage.getItem('snapview_auth') || localStorage.getItem('snapview_auth');
+        
+        if (authData) {
+            authData = JSON.parse(authData);
+            
+            // Check if auth data is not too old (24 hours)
+            const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+            if (Date.now() - authData.timestamp < maxAge) {
+                currentUser = authData;
+                updateAuthUI();
+                console.log('Restored auth state for:', currentUser.name);
+            } else {
+                // Clear expired auth data
+                localStorage.removeItem('snapview_auth');
+                sessionStorage.removeItem('snapview_auth');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading auth state:', error);
+        // Clear corrupted auth data
+        localStorage.removeItem('snapview_auth');
+        sessionStorage.removeItem('snapview_auth');
+    }
+    
+    // Always update UI to show correct state
+    updateAuthUI();
+}
 
 // Enhanced permission check for Safari
 async function checkCameraPermission() {
