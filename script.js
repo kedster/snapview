@@ -893,6 +893,14 @@ function showLatestResult(responseEntry) {
             inline: 'nearest'
         });
     }, 300);
+    
+    // Add gentle pulse effect to draw attention
+    setTimeout(() => {
+        latestResultCard.style.animation = 'gentlePulse 0.6s ease-out';
+        setTimeout(() => {
+            latestResultCard.style.animation = '';
+        }, 600);
+    }, 400);
 }
 
 function updateResponsesDisplay() {
