@@ -24,6 +24,13 @@ const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
 
+// New UI elements for improved flow
+const analysisProgressCard = document.getElementById('analysisProgressCard');
+const latestResultCard = document.getElementById('latestResultCard');
+const latestPrimaryResult = document.getElementById('latestPrimaryResult');
+const latestSecondaryResult = document.getElementById('latestSecondaryResult');
+const resultTimestamp = document.getElementById('resultTimestamp');
+
 // State variables
 let currentStream = null;
 let isAnalyzing = false;
@@ -666,6 +673,9 @@ async function analyzeFrame() {
     
     analyzeNowButton.disabled = true;
     analysisStatus.textContent = 'Analysis: Processing...';
+    
+    // Show progress card with animation
+    showProgressCard();
 
     try {
         const imageData = captureFrame();
@@ -701,6 +711,13 @@ async function analyzeFrame() {
         };
 
         responses.unshift(responseEntry);
+        
+        // Hide progress card and show result with smooth transition
+        hideProgressCard();
+        setTimeout(() => {
+            showLatestResult(responseEntry);
+        }, 200);
+        
         updateResponsesDisplay();
         enableExport();
 
@@ -717,6 +734,13 @@ async function analyzeFrame() {
         };
 
         responses.unshift(errorEntry);
+        
+        // Hide progress card and show error result
+        hideProgressCard();
+        setTimeout(() => {
+            showLatestResult(errorEntry);
+        }, 200);
+        
         updateResponsesDisplay();
     } finally {
         isAnalyzing = false;
@@ -816,6 +840,61 @@ Include urgency if appropriate (e.g., “Great deal  priced to sell!” or “Ha
 
 
 // Display and utility functions
+function showProgressCard() {
+    if (analysisProgressCard) {
+        analysisProgressCard.style.display = 'block';
+        // Force reflow for animation
+        analysisProgressCard.offsetHeight;
+        analysisProgressCard.classList.add('show');
+    }
+}
+
+function hideProgressCard() {
+    if (analysisProgressCard) {
+        analysisProgressCard.classList.remove('show');
+        setTimeout(() => {
+            analysisProgressCard.style.display = 'none';
+        }, 400);
+    }
+}
+
+function showLatestResult(responseEntry) {
+    if (!latestResultCard || !latestPrimaryResult || !latestSecondaryResult || !resultTimestamp) {
+        return;
+    }
+    
+    // Update content
+    latestPrimaryResult.textContent = responseEntry.primaryResponse;
+    latestSecondaryResult.textContent = responseEntry.secondaryResponse;
+    resultTimestamp.textContent = responseEntry.timestamp;
+    
+    // Update styling for errors
+    if (responseEntry.isError) {
+        latestResultCard.style.borderColor = '#ff6b6b';
+        latestResultCard.querySelector('.result-header').style.background = 
+            'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)';
+    } else {
+        latestResultCard.style.borderColor = '#e9ecef';
+        latestResultCard.querySelector('.result-header').style.background = 
+            'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+    }
+    
+    // Show with animation
+    latestResultCard.style.display = 'block';
+    // Force reflow for animation
+    latestResultCard.offsetHeight;
+    latestResultCard.classList.add('show');
+    
+    // Smooth scroll to result
+    setTimeout(() => {
+        latestResultCard.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest',
+            inline: 'nearest'
+        });
+    }, 300);
+}
+
 function updateResponsesDisplay() {
     if (responses.length === 0) {
         responsesList.innerHTML = `

@@ -50,6 +50,17 @@
                     <div id="cameraStatus">Camera: Disconnected</div>
                     <div id="analysisStatus">Analysis: Stopped</div>
                 </div>
+                
+                <!-- Analysis progress indicator -->
+                <div id="analysisProgressCard" class="analysis-progress-card" style="display: none;">
+                    <div class="progress-content">
+                        <div class="progress-spinner"></div>
+                        <div class="progress-text">
+                            <h4>Analyzing Image...</h4>
+                            <p>Processing your prompts with AI vision</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="prompts-section">
@@ -73,6 +84,24 @@
                 <div class="prompt-group">
                     <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
                     <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
+                </div>
+                
+                <!-- Latest Result Display -->
+                <div id="latestResultCard" class="latest-result-card" style="display: none;">
+                    <div class="result-header">
+                        <h4>Latest Analysis Result</h4>
+                        <span id="resultTimestamp" class="result-timestamp"></span>
+                    </div>
+                    <div class="result-content">
+                        <div class="result-section primary">
+                            <div class="result-label">Primary Analysis</div>
+                            <div id="latestPrimaryResult" class="result-text"></div>
+                        </div>
+                        <div class="result-section secondary">
+                            <div class="result-label">Follow-up Analysis</div>
+                            <div id="latestSecondaryResult" class="result-text"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
