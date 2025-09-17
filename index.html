@@ -11,6 +11,7 @@
         <div class="header">
             <h1>SnapView</h1>
             <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+            <button id="helpButton" class="help-btn" title="Show walkthrough">❓ Help</button>
         </div>
 
         <div class="main-content">
@@ -91,6 +92,26 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Demo Walkthrough Overlay -->
+    <div id="walkthroughOverlay" class="walkthrough-overlay hidden">
+        <div class="walkthrough-backdrop"></div>
+        <div class="walkthrough-tooltip">
+            <div class="walkthrough-content">
+                <h3 id="walkthroughTitle">Welcome to SnapView!</h3>
+                <p id="walkthroughText">This app provides real-time dual analysis of your camera feed using ChatGPT. Let's walk through the key features!</p>
+                <div class="walkthrough-controls">
+                    <button id="walkthroughSkip" class="btn-walkthrough skip">Skip Tour</button>
+                    <div class="walkthrough-navigation">
+                        <span id="walkthroughProgress">1 of 6</span>
+                        <button id="walkthroughPrev" class="btn-walkthrough nav" disabled>Previous</button>
+                        <button id="walkthroughNext" class="btn-walkthrough nav primary">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="walkthrough-highlight"></div>
     </div>
 
   <script src="script.js"></script>

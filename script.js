@@ -890,3 +890,222 @@ function clearHistory() {
 
 // Initialize
 enableExport();
+
+// Demo Walkthrough System
+class DemoWalkthrough {
+    constructor() {
+        this.currentStep = 0;
+        this.isActive = false;
+        this.steps = [
+            {
+                title: "Welcome to SnapView!",
+                text: "This app provides real-time dual analysis of your camera feed using ChatGPT. No signup required, but you're limited to 5 analyses per 24 hours. Let's explore the features!",
+                target: null,
+                position: "center"
+            },
+            {
+                title: "Preset Prompt Buttons",
+                text: "These buttons quickly set up different analysis types. Try 'Repair' for damage assessment, 'For Sale' for marketplace listings, or 'Identify' for detailed cataloging.",
+                target: ".preset-buttons",
+                position: "bottom"
+            },
+            {
+                title: "Customize Your Prompts",
+                text: "You can edit these text areas to customize how ChatGPT analyzes your images. The primary prompt describes what to look for, and the follow-up provides additional insights.",
+                target: "#primaryPrompt",
+                position: "left"
+            },
+            {
+                title: "Camera Controls",
+                text: "Start your camera here and use 'Analyze Now' to capture and analyze the current frame. On mobile, you can switch between front and back cameras.",
+                target: ".controls",
+                position: "right"
+            },
+            {
+                title: "Export Your Data",
+                text: "Your analysis history can be exported as CSV for your records. No data is stored on our servers - everything stays private on your device.",
+                target: "#exportButton",
+                position: "top"
+            },
+            {
+                title: "You're All Set!",
+                text: "SnapView is optimized for mobile use. Remember: 5 analyses per IP per 24 hours, no data stored, completely private. Start by clicking 'Start Camera' and pointing at something interesting!",
+                target: null,
+                position: "center"
+            }
+        ];
+        
+        this.overlay = document.getElementById('walkthroughOverlay');
+        this.tooltip = document.querySelector('.walkthrough-tooltip');
+        this.highlight = document.querySelector('.walkthrough-highlight');
+        this.title = document.getElementById('walkthroughTitle');
+        this.text = document.getElementById('walkthroughText');
+        this.progress = document.getElementById('walkthroughProgress');
+        this.prevBtn = document.getElementById('walkthroughPrev');
+        this.nextBtn = document.getElementById('walkthroughNext');
+        this.skipBtn = document.getElementById('walkthroughSkip');
+        
+        this.bindEvents();
+    }
+    
+    bindEvents() {
+        document.getElementById('helpButton').addEventListener('click', () => this.start());
+        this.prevBtn.addEventListener('click', () => this.previousStep());
+        this.nextBtn.addEventListener('click', () => this.nextStep());
+        this.skipBtn.addEventListener('click', () => this.end());
+        this.overlay.addEventListener('click', (e) => {
+            if (e.target === this.overlay || e.target.classList.contains('walkthrough-backdrop')) {
+                this.end();
+            }
+        });
+        
+        // ESC key to exit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isActive) {
+                this.end();
+            }
+        });
+    }
+    
+    start() {
+        this.currentStep = 0;
+        this.isActive = true;
+        this.overlay.classList.remove('hidden');
+        this.showStep();
+    }
+    
+    end() {
+        this.isActive = false;
+        this.overlay.classList.add('hidden');
+        this.highlight.style.display = 'none';
+        localStorage.setItem('demo_walkthrough_complete', 'true');
+    }
+    
+    nextStep() {
+        if (this.currentStep < this.steps.length - 1) {
+            this.currentStep++;
+            this.showStep();
+        } else {
+            this.end();
+        }
+    }
+    
+    previousStep() {
+        if (this.currentStep > 0) {
+            this.currentStep--;
+            this.showStep();
+        }
+    }
+    
+    showStep() {
+        const step = this.steps[this.currentStep];
+        
+        // Update content
+        this.title.textContent = step.title;
+        this.text.textContent = step.text;
+        this.progress.textContent = `${this.currentStep + 1} of ${this.steps.length}`;
+        
+        // Update navigation buttons
+        this.prevBtn.disabled = this.currentStep === 0;
+        this.nextBtn.textContent = this.currentStep === this.steps.length - 1 ? 'Finish' : 'Next';
+        
+        // Position tooltip and highlight
+        this.positionElements(step);
+    }
+    
+    positionElements(step) {
+        if (step.target) {
+            const targetElement = document.querySelector(step.target);
+            if (targetElement) {
+                const rect = targetElement.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                
+                // Show and position highlight
+                this.highlight.style.display = 'block';
+                this.highlight.style.top = (rect.top + scrollTop - 10) + 'px';
+                this.highlight.style.left = (rect.left + scrollLeft - 10) + 'px';
+                this.highlight.style.width = (rect.width + 20) + 'px';
+                this.highlight.style.height = (rect.height + 20) + 'px';
+                
+                // Position tooltip
+                this.positionTooltip(rect, step.position, scrollTop, scrollLeft);
+                
+                // Scroll element into view
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else {
+            // Center the tooltip for welcome/finish steps
+            this.highlight.style.display = 'none';
+            this.tooltip.style.top = '50%';
+            this.tooltip.style.left = '50%';
+            this.tooltip.style.transform = 'translate(-50%, -50%)';
+        }
+    }
+    
+    positionTooltip(rect, position, scrollTop, scrollLeft) {
+        const tooltipRect = this.tooltip.getBoundingClientRect();
+        const margin = 20;
+        let top, left, transform = '';
+        
+        switch (position) {
+            case 'top':
+                top = rect.top + scrollTop - tooltipRect.height - margin;
+                left = rect.left + scrollLeft + (rect.width / 2);
+                transform = 'translateX(-50%)';
+                break;
+            case 'bottom':
+                top = rect.bottom + scrollTop + margin;
+                left = rect.left + scrollLeft + (rect.width / 2);
+                transform = 'translateX(-50%)';
+                break;
+            case 'left':
+                top = rect.top + scrollTop + (rect.height / 2);
+                left = rect.left + scrollLeft - tooltipRect.width - margin;
+                transform = 'translateY(-50%)';
+                break;
+            case 'right':
+                top = rect.top + scrollTop + (rect.height / 2);
+                left = rect.right + scrollLeft + margin;
+                transform = 'translateY(-50%)';
+                break;
+            default:
+                top = rect.bottom + scrollTop + margin;
+                left = rect.left + scrollLeft + (rect.width / 2);
+                transform = 'translateX(-50%)';
+        }
+        
+        // Ensure tooltip stays within viewport
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        if (left + tooltipRect.width > viewportWidth) {
+            left = viewportWidth - tooltipRect.width - 20;
+            transform = '';
+        }
+        if (left < 20) {
+            left = 20;
+            transform = '';
+        }
+        if (top < 20) {
+            top = rect.bottom + scrollTop + margin;
+        }
+        
+        this.tooltip.style.top = top + 'px';
+        this.tooltip.style.left = left + 'px';
+        this.tooltip.style.transform = transform;
+    }
+}
+
+// Initialize walkthrough system
+const walkthrough = new DemoWalkthrough();
+
+// Auto-start walkthrough on first visit
+window.addEventListener('load', () => {
+    if (!localStorage.getItem('demo_walkthrough_complete')) {
+        // Delay to ensure page is fully loaded
+        setTimeout(() => {
+            walkthrough.start();
+        }, 1000);
+    }
+});
