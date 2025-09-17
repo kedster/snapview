@@ -5,12 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapView - Dual Analysis</title>
     <link id="mainStylesheet" rel="stylesheet" href="style.css">
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
  <div class="container">
         <div class="header">
             <h1>SnapView</h1>
             <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+            
+            <!-- User Account Section -->
+            <div class="user-section" id="userSection">
+                <div class="user-info" id="userInfo" style="display: none;">
+                    <span id="userEmail"></span>
+                    <span id="userStatus" class="user-status"></span>
+                    <button id="upgradeButton" class="btn upgrade" style="display: none;">⭐ Upgrade</button>
+                    <button id="logoutButton" class="btn secondary small">Logout</button>
+                </div>
+                <div class="login-form" id="loginForm">
+                    <input type="email" id="emailInput" placeholder="Enter your email to track usage" required>
+                    <button id="loginButton" class="btn primary">Continue</button>
+                </div>
+                <div class="usage-info" id="usageInfo" style="display: none;">
+                    <div class="usage-bar">
+                        <div class="usage-progress" id="usageProgress"></div>
+                    </div>
+                    <div class="usage-text" id="usageText"></div>
+                </div>
+            </div>
         </div>
 
         <div class="main-content">

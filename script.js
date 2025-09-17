@@ -1,6 +1,16 @@
 // Configuration - REPLACE WITH YOUR CLOUDFLARE WORKER URL
 const WORKER_URL = 'backend-worker.sethkeddy.workers.dev';
 
+// Stripe Configuration - REPLACE WITH YOUR ACTUAL STRIPE KEYS
+// Get these from your Stripe Dashboard at https://dashboard.stripe.com/apikeys
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51234567890'; // Replace with your actual publishable key
+const STRIPE_PRICE_ID = 'price_1234567890'; // Replace with your actual price ID from Stripe Products
+
+// User management and payment state
+let currentUser = null;
+let userUsageCount = 0;
+const FREE_USAGE_LIMIT = 10; // Free users get 10 analyses per day
+
 // DOM Elements
 const webcamFeed = document.getElementById('webcamFeed');
 const captureCanvas = document.getElementById('captureCanvas');
@@ -24,6 +34,20 @@ const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
 
+// User section elements
+const userSection = document.getElementById('userSection');
+const userInfo = document.getElementById('userInfo');
+const loginForm = document.getElementById('loginForm');
+const emailInput = document.getElementById('emailInput');
+const loginButton = document.getElementById('loginButton');
+const userEmail = document.getElementById('userEmail');
+const userStatus = document.getElementById('userStatus');
+const upgradeButton = document.getElementById('upgradeButton');
+const logoutButton = document.getElementById('logoutButton');
+const usageInfo = document.getElementById('usageInfo');
+const usageProgress = document.getElementById('usageProgress');
+const usageText = document.getElementById('usageText');
+
 // State variables
 let currentStream = null;
 let isAnalyzing = false;
@@ -45,6 +69,179 @@ clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
 
+// User authentication event listeners
+loginButton.addEventListener('click', handleLogin);
+logoutButton.addEventListener('click', handleLogout);
+upgradeButton.addEventListener('click', handleUpgrade);
+emailInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        handleLogin();
+    }
+});
+
+// User Management Functions
+function handleLogin() {
+    const email = emailInput.value.trim();
+    if (!email || !isValidEmail(email)) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    // Save email for next time
+    localStorage.setItem('snapview_last_email', email);
+
+    currentUser = {
+        email: email,
+        isPremium: false,
+        usageCount: 0
+    };
+
+    // Check localStorage for existing user data
+    const savedUser = localStorage.getItem(`snapview_user_${email}`);
+    if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        currentUser = { ...currentUser, ...userData };
+    }
+
+    // Reset daily usage if it's a new day
+    const today = new Date().toDateString();
+    const lastUsageDate = localStorage.getItem(`snapview_last_usage_${email}`);
+    if (lastUsageDate !== today) {
+        currentUser.usageCount = 0;
+        localStorage.setItem(`snapview_last_usage_${email}`, today);
+    }
+
+    saveUserData();
+    updateUserDisplay();
+}
+
+function handleLogout() {
+    currentUser = null;
+    updateUserDisplay();
+}
+
+async function handleUpgrade() {
+    if (!currentUser) {
+        alert('Please log in first');
+        return;
+    }
+
+    try {
+        // Create Stripe checkout session
+        const response = await fetch(`https://${WORKER_URL}/create-checkout-session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: currentUser.email,
+                priceId: STRIPE_PRICE_ID,
+                successUrl: `${window.location.origin}?success=true`,
+                cancelUrl: `${window.location.origin}?canceled=true`
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create checkout session');
+        }
+
+        const session = await response.json();
+        
+        // Redirect to Stripe Checkout
+        if (session.url) {
+            window.location.href = session.url;
+        } else {
+            throw new Error('No checkout URL received');
+        }
+    } catch (error) {
+        console.error('Upgrade error:', error);
+        alert('Failed to start upgrade process. Please try again.');
+    }
+}
+
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function saveUserData() {
+    if (currentUser) {
+        localStorage.setItem(`snapview_user_${currentUser.email}`, JSON.stringify(currentUser));
+    }
+}
+
+function updateUserDisplay() {
+    if (currentUser) {
+        // Show user info, hide login form
+        loginForm.style.display = 'none';
+        userInfo.style.display = 'flex';
+        usageInfo.style.display = 'block';
+        
+        userEmail.textContent = currentUser.email;
+        
+        if (currentUser.isPremium) {
+            userStatus.textContent = 'Premium';
+            userStatus.className = 'user-status premium';
+            upgradeButton.style.display = 'none';
+            analysisStatus.textContent = 'Analysis: Ready (Unlimited)';
+            
+            // Hide usage bar for premium users
+            usageInfo.style.display = 'none';
+        } else {
+            const remaining = FREE_USAGE_LIMIT - currentUser.usageCount;
+            userStatus.textContent = `Free (${remaining} remaining today)`;
+            userStatus.className = 'user-status free';
+            upgradeButton.style.display = 'inline-block';
+            
+            // Update usage bar
+            const usagePercent = (currentUser.usageCount / FREE_USAGE_LIMIT) * 100;
+            usageProgress.style.width = `${usagePercent}%`;
+            usageText.textContent = `${currentUser.usageCount}/${FREE_USAGE_LIMIT} analyses used today`;
+            
+            if (currentUser.usageCount >= FREE_USAGE_LIMIT) {
+                analysisStatus.textContent = 'Analysis: Daily limit reached - Upgrade for unlimited access';
+                analyzeNowButton.disabled = true;
+                analyzeNowButton.textContent = 'Daily Limit Reached';
+                usageText.textContent = 'Daily limit reached - Upgrade for unlimited access';
+            } else {
+                analysisStatus.textContent = `Analysis: Ready (${remaining} remaining today)`;
+                analyzeNowButton.disabled = false;
+                analyzeNowButton.textContent = 'Analyze Now';
+            }
+        }
+    } else {
+        // Show login form, hide user info
+        loginForm.style.display = 'flex';
+        userInfo.style.display = 'none';
+        usageInfo.style.display = 'none';
+        emailInput.value = '';
+        analysisStatus.textContent = 'Analysis: Please log in to continue';
+        analyzeNowButton.disabled = true;
+        analyzeNowButton.textContent = 'Login Required';
+    }
+}
+
+function checkUsageLimit() {
+    if (!currentUser) {
+        alert('Please log in to use analysis features');
+        return false;
+    }
+
+    if (!currentUser.isPremium && currentUser.usageCount >= FREE_USAGE_LIMIT) {
+        alert(`You've reached your daily limit of ${FREE_USAGE_LIMIT} analyses. Upgrade to premium for unlimited access!`);
+        return false;
+    }
+
+    return true;
+}
+
+function incrementUsage() {
+    if (currentUser && !currentUser.isPremium) {
+        currentUser.usageCount++;
+        saveUserData();
+        updateUserDisplay();
+    }
+}
+
 // Initialize on page load
 window.addEventListener('load', () => {
     if (isMobileDevice) {
@@ -55,7 +252,48 @@ window.addEventListener('load', () => {
         switchCameraButton.style.display = 'none';
         initializeCameras();
     }
+    
+    // Initialize user system
+    initializeUserSystem();
+    
+    // Check for payment success/cancellation in URL params
+    checkPaymentStatus();
 });
+
+function initializeUserSystem() {
+    // Check if user was previously logged in
+    const lastEmail = localStorage.getItem('snapview_last_email');
+    if (lastEmail) {
+        emailInput.value = lastEmail;
+    }
+    
+    updateUserDisplay();
+}
+
+function checkPaymentStatus() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.get('success') === 'true') {
+        // Payment was successful
+        if (currentUser) {
+            currentUser.isPremium = true;
+            saveUserData();
+            updateUserDisplay();
+        }
+        
+        // Show success message
+        alert('🎉 Payment successful! You now have unlimited access to SnapView analyses.');
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('canceled') === 'true') {
+        // Payment was canceled
+        alert('Payment was canceled. You can upgrade anytime by clicking the Upgrade button.');
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
 
 // Enhanced permission check for Safari
 async function checkCameraPermission() {
@@ -635,6 +873,11 @@ async function switchDesktopCamera() {
 
 // Analysis functions
 function analyzeNow() {
+    if (!currentUser) {
+        alert('Please log in to use analysis features');
+        return;
+    }
+    
     if (!isAnalyzing) {
         analyzeFrame();
     }
@@ -655,6 +898,11 @@ function captureFrame() {
 }
 
 async function analyzeFrame() {
+    // Check usage limits before proceeding
+    if (!checkUsageLimit()) {
+        return;
+    }
+
     if (isAnalyzing) {
         alert('Analysis already in progress. Please wait...');
         return;
@@ -681,7 +929,9 @@ async function analyzeFrame() {
             body: JSON.stringify({
                 image: imageData,
                 primaryPrompt: primaryPrompt.value.trim() || 'Describe what you see in this image.',
-                secondaryPrompt: secondaryPrompt.value.trim() || 'Provide additional insights about this scene.'
+                secondaryPrompt: secondaryPrompt.value.trim() || 'Provide additional insights about this scene.',
+                userEmail: currentUser?.email || null,
+                isPremium: currentUser?.isPremium || false
             }),
         });
 
@@ -691,6 +941,9 @@ async function analyzeFrame() {
         }
 
         const data = await response.json();
+        
+        // Increment usage count for successful analysis
+        incrementUsage();
         
         const responseEntry = {
             timestamp: new Date().toLocaleString(),
@@ -720,8 +973,17 @@ async function analyzeFrame() {
         updateResponsesDisplay();
     } finally {
         isAnalyzing = false;
-        analyzeNowButton.disabled = false;
-        analysisStatus.textContent = 'Analysis: Ready';
+        
+        // Update button state based on current usage
+        if (currentUser && !currentUser.isPremium && currentUser.usageCount >= FREE_USAGE_LIMIT) {
+            analyzeNowButton.disabled = true;
+            analyzeNowButton.textContent = 'Daily Limit Reached';
+            analysisStatus.textContent = 'Analysis: Daily limit reached - Upgrade for unlimited access';
+        } else {
+            analyzeNowButton.disabled = false;
+            analyzeNowButton.textContent = 'Analyze Now';
+            updateUserDisplay(); // This will update the status text
+        }
         
         setTimeout(() => {
             removeFlashEffect();
