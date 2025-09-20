@@ -59,7 +59,7 @@
 
         <div class="main-content">
             <div class="video-section">
-                <h3 style="margin-bottom: 20px; color: #495057;">Camera Feed</h3>
+                <h3 class="section-title">📷 Camera Feed</h3>
                 
                 <div class="video-container">
                     <video id="webcamFeed" autoplay playsinline muted></video>
@@ -89,7 +89,6 @@
                     <button id="analyzeNowButton" class="btn success" disabled>Analyze Now</button>
                 </div>
 
-
                 <div class="status-info">
                     <div id="cameraStatus">Camera: Disconnected</div>
                     <div id="analysisStatus">Analysis: Stopped</div>
@@ -108,7 +107,7 @@
             </div>
 
             <div class="prompts-section">
-                <h3 style="margin-bottom: 20px; color: #495057;">Analysis Prompts</h3>
+                <h3 class="section-title">🔍 Analysis Prompts</h3>
                 
                 <div class="preset-buttons">
                     <button class="preset-btn repair" onclick="setRepairPrompts()">🔧 Repair</button>
@@ -148,22 +147,21 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="responses-table">
-            <div class="table-header">
-                <h3>Complete Analysis History</h3>
+            <div class="results-section">
+                <h3 class="section-title">📊 Results & History</h3>
+                
                 <div class="table-controls">
-                    <button id="exportButton" class="btn primary" disabled>Export CSV</button>
-                    <button id="clearButton" class="btn danger">Clear History</button>
+                    <button id="exportButton" class="btn primary" disabled>📥 Export CSV</button>
+                    <button id="clearButton" class="btn danger">🗑️ Clear History</button>
+                </div>
+                
+                <div class="table-content" id="responsesList">
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        No analyses yet. Start the camera and begin analysis to see results here.
+                    </div>
                 </div>
             </div>
-            <div class="table-content" id="responsesList">
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    No analyses yet. Start the camera and begin analysis to see results here.
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Demo Walkthrough Overlay -->
