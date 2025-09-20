@@ -5,12 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapView - Dual Analysis</title>
     <link id="mainStylesheet" rel="stylesheet" href="style.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
  <div class="container">
         <div class="header">
-            <h1>SnapView</h1>
-            <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+            <div class="header-content">
+                <div class="title-section">
+                    <h1>SnapView</h1>
+                    <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+                </div>
+                <div class="auth-section">
+                    <div id="authContainer">
+                        <div id="signInButton" class="google-signin-button" style="display: none;"></div>
+                        <div id="userProfile" class="user-profile" style="display: none;">
+                            <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
+                            <div class="user-info">
+                                <div id="userName" class="user-name"></div>
+                                <button id="signOutButton" class="sign-out-btn">Sign Out</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="main-content">
