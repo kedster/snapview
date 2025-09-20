@@ -5,27 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapView - Dual Analysis</title>
     <link id="mainStylesheet" rel="stylesheet" href="style.css">
+    <script src="https://js.stripe.com/v3/"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
  <div class="container">
         <div class="header">
-            <div class="header-content">
-                <div class="title-section">
-                    <h1>SnapView</h1>
-                    <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+<div class="header-content">
+    <!-- Title Section -->
+    <div class="title-section">
+        <h1>SnapView</h1>
+        <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+    </div>
+
+    <!-- Authentication & User Section -->
+    <div class="auth-section">
+        <div id="authContainer">
+
+            <!-- Google Sign-In -->
+            <div id="signInButton" class="google-signin-button" style="display: none;"></div>
+
+            <!-- User Profile -->
+            <div id="userProfile" class="user-profile" style="display: none;">
+                <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
+                <div class="user-info">
+                    <div id="userName" class="user-name"></div>
+                    <div id="userEmail" class="user-email"></div>
+                    <span id="userStatus" class="user-status"></span>
+                    <button id="upgradeButton" class="btn upgrade" style="display: none;">⭐ Upgrade</button>
+                    <button id="signOutButton" class="btn secondary small">Sign Out</button>
                 </div>
-                <div class="auth-section">
-                    <div id="authContainer">
-                        <div id="signInButton" class="google-signin-button" style="display: none;"></div>
-                        <div id="userProfile" class="user-profile" style="display: none;">
-                            <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
-                            <div class="user-info">
-                                <div id="userName" class="user-name"></div>
-                                <button id="signOutButton" class="sign-out-btn">Sign Out</button>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+
+            <!-- Email Login (Fallback / Tracking Only) -->
+            <div class="login-form" id="loginForm">
+                <input type="email" id="emailInput" placeholder="Enter your email to track usage" required>
+                <button id="loginButton" class="btn primary">Continue</button>
+            </div>
+
+            <!-- Usage Info -->
+            <div class="usage-info" id="usageInfo" style="display: none;">
+                <div class="usage-bar">
+                    <div class="usage-progress" id="usageProgress"></div>
+                </div>
+                <div class="usage-text" id="usageText"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
                 </div>
             </div>
         </div>

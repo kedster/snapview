@@ -1,6 +1,18 @@
 // Configuration - REPLACE WITH YOUR CLOUDFLARE WORKER URL
 const WORKER_URL = 'backend-worker.sethkeddy.workers.dev';
 
+
+
+// Stripe Configuration - REPLACE WITH YOUR ACTUAL STRIPE KEYS
+// Get these from your Stripe Dashboard at https://dashboard.stripe.com/apikeys
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51234567890'; // Replace with your actual publishable key
+const STRIPE_PRICE_ID = 'price_1234567890'; // Replace with your actual price ID from Stripe Products
+
+// User management and payment state
+let currentUser = null;
+let userUsageCount = 0;
+const FREE_USAGE_LIMIT = 10; // Free users get 10 analyses per day
+
 // Google OAuth Configuration - Replace with your actual client ID
 const GOOGLE_CLIENT_ID = 'your-google-client-id.apps.googleusercontent.com';
 
@@ -10,6 +22,7 @@ const DEMO_MODE = true;
 // Authentication state
 let currentUser = null;
 let authInitialized = false;
+
 
 // DOM Elements
 const webcamFeed = document.getElementById('webcamFeed');
@@ -34,18 +47,39 @@ const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
 
+// ===============================
+// User Section Elements
+// ===============================
+const userSection = document.getElementById('userSection');
+const userInfo = document.getElementById('userInfo');
+const loginForm = document.getElementById('loginForm');
+const emailInput = document.getElementById('emailInput');
+const loginButton = document.getElementById('loginButton');
+const userEmail = document.getElementById('userEmail');
+const userStatus = document.getElementById('userStatus');
+const upgradeButton = document.getElementById('upgradeButton');
+const logoutButton = document.getElementById('logoutButton');
+const usageInfo = document.getElementById('usageInfo');
+const usageProgress = document.getElementById('usageProgress');
+const usageText = document.getElementById('usageText');
 
-// New UI elements for improved flow
-const analysisProgressCard = document.getElementById('analysisProgressCard');
-const latestResultCard = document.getElementById('latestResultCard');
-const latestPrimaryResult = document.getElementById('latestPrimaryResult');
-const latestSecondaryResult = document.getElementById('latestSecondaryResult');
-const resultTimestamp = document.getElementById('resultTimestamp');
+// ===============================
+// Google Auth & Profile Elements
+// ===============================
 const signInButton = document.getElementById('signInButton');
 const userProfile = document.getElementById('userProfile');
 const userAvatar = document.getElementById('userAvatar');
 const userName = document.getElementById('userName');
 const signOutButton = document.getElementById('signOutButton');
+
+// ===============================
+// Analysis & Results Elements
+// ===============================
+const analysisProgressCard = document.getElementById('analysisProgressCard');
+const latestResultCard = document.getElementById('latestResultCard');
+const latestPrimaryResult = document.getElementById('latestPrimaryResult');
+const latestSecondaryResult = document.getElementById('latestSecondaryResult');
+const resultTimestamp = document.getElementById('resultTimestamp');
 
 
 // State variables
@@ -70,6 +104,179 @@ switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
 signOutButton.addEventListener('click', signOut);
 
+// User authentication event listeners
+loginButton.addEventListener('click', handleLogin);
+logoutButton.addEventListener('click', handleLogout);
+upgradeButton.addEventListener('click', handleUpgrade);
+emailInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        handleLogin();
+    }
+});
+
+// User Management Functions
+function handleLogin() {
+    const email = emailInput.value.trim();
+    if (!email || !isValidEmail(email)) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
+    // Save email for next time
+    localStorage.setItem('snapview_last_email', email);
+
+    currentUser = {
+        email: email,
+        isPremium: false,
+        usageCount: 0
+    };
+
+    // Check localStorage for existing user data
+    const savedUser = localStorage.getItem(`snapview_user_${email}`);
+    if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        currentUser = { ...currentUser, ...userData };
+    }
+
+    // Reset daily usage if it's a new day
+    const today = new Date().toDateString();
+    const lastUsageDate = localStorage.getItem(`snapview_last_usage_${email}`);
+    if (lastUsageDate !== today) {
+        currentUser.usageCount = 0;
+        localStorage.setItem(`snapview_last_usage_${email}`, today);
+    }
+
+    saveUserData();
+    updateUserDisplay();
+}
+
+function handleLogout() {
+    currentUser = null;
+    updateUserDisplay();
+}
+
+async function handleUpgrade() {
+    if (!currentUser) {
+        alert('Please log in first');
+        return;
+    }
+
+    try {
+        // Create Stripe checkout session
+        const response = await fetch(`https://${WORKER_URL}/create-checkout-session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: currentUser.email,
+                priceId: STRIPE_PRICE_ID,
+                successUrl: `${window.location.origin}?success=true`,
+                cancelUrl: `${window.location.origin}?canceled=true`
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create checkout session');
+        }
+
+        const session = await response.json();
+        
+        // Redirect to Stripe Checkout
+        if (session.url) {
+            window.location.href = session.url;
+        } else {
+            throw new Error('No checkout URL received');
+        }
+    } catch (error) {
+        console.error('Upgrade error:', error);
+        alert('Failed to start upgrade process. Please try again.');
+    }
+}
+
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function saveUserData() {
+    if (currentUser) {
+        localStorage.setItem(`snapview_user_${currentUser.email}`, JSON.stringify(currentUser));
+    }
+}
+
+function updateUserDisplay() {
+    if (currentUser) {
+        // Show user info, hide login form
+        loginForm.style.display = 'none';
+        userInfo.style.display = 'flex';
+        usageInfo.style.display = 'block';
+        
+        userEmail.textContent = currentUser.email;
+        
+        if (currentUser.isPremium) {
+            userStatus.textContent = 'Premium';
+            userStatus.className = 'user-status premium';
+            upgradeButton.style.display = 'none';
+            analysisStatus.textContent = 'Analysis: Ready (Unlimited)';
+            
+            // Hide usage bar for premium users
+            usageInfo.style.display = 'none';
+        } else {
+            const remaining = FREE_USAGE_LIMIT - currentUser.usageCount;
+            userStatus.textContent = `Free (${remaining} remaining today)`;
+            userStatus.className = 'user-status free';
+            upgradeButton.style.display = 'inline-block';
+            
+            // Update usage bar
+            const usagePercent = (currentUser.usageCount / FREE_USAGE_LIMIT) * 100;
+            usageProgress.style.width = `${usagePercent}%`;
+            usageText.textContent = `${currentUser.usageCount}/${FREE_USAGE_LIMIT} analyses used today`;
+            
+            if (currentUser.usageCount >= FREE_USAGE_LIMIT) {
+                analysisStatus.textContent = 'Analysis: Daily limit reached - Upgrade for unlimited access';
+                analyzeNowButton.disabled = true;
+                analyzeNowButton.textContent = 'Daily Limit Reached';
+                usageText.textContent = 'Daily limit reached - Upgrade for unlimited access';
+            } else {
+                analysisStatus.textContent = `Analysis: Ready (${remaining} remaining today)`;
+                analyzeNowButton.disabled = false;
+                analyzeNowButton.textContent = 'Analyze Now';
+            }
+        }
+    } else {
+        // Show login form, hide user info
+        loginForm.style.display = 'flex';
+        userInfo.style.display = 'none';
+        usageInfo.style.display = 'none';
+        emailInput.value = '';
+        analysisStatus.textContent = 'Analysis: Please log in to continue';
+        analyzeNowButton.disabled = true;
+        analyzeNowButton.textContent = 'Login Required';
+    }
+}
+
+function checkUsageLimit() {
+    if (!currentUser) {
+        alert('Please log in to use analysis features');
+        return false;
+    }
+
+    if (!currentUser.isPremium && currentUser.usageCount >= FREE_USAGE_LIMIT) {
+        alert(`You've reached your daily limit of ${FREE_USAGE_LIMIT} analyses. Upgrade to premium for unlimited access!`);
+        return false;
+    }
+
+    return true;
+}
+
+function incrementUsage() {
+    if (currentUser && !currentUser.isPremium) {
+        currentUser.usageCount++;
+        saveUserData();
+        updateUserDisplay();
+    }
+}
+
 // Initialize on page load
 window.addEventListener('load', () => {
     if (isMobileDevice) {
@@ -81,17 +288,51 @@ window.addEventListener('load', () => {
         initializeCameras();
     }
     
-    // Initialize Google Auth
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize both auth systems
     initializeGoogleAuth();
-    
+    initializeUserSystem();
+
     // Load saved auth state
     loadAuthState();
+
+    // Check for payment success/cancellation in URL params
+    checkPaymentStatus();
 });
 
-// Google Authentication Functions
+// ===============================
+// Email/User System (copilot/fix-3)
+// ===============================
+function initializeUserSystem() {
+    const lastEmail = localStorage.getItem('snapview_last_email');
+    if (lastEmail) {
+        emailInput.value = lastEmail;
+    }
+    updateUserDisplay();
+}
+
+function checkPaymentStatus() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if (urlParams.get('success') === 'true') {
+        if (currentUser) {
+            currentUser.isPremium = true;
+            saveUserData();
+            updateUserDisplay();
+        }
+        alert('🎉 Payment successful! You now have unlimited access to SnapView analyses.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('canceled') === 'true') {
+        alert('Payment was canceled. You can upgrade anytime by clicking the Upgrade button.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+// ===============================
+// Google Authentication (main)
+// ===============================
 function initializeGoogleAuth() {
     if (DEMO_MODE) {
-        // Demo mode - create a simple sign-in button
         signInButton.innerHTML = `
             <button id="demoSignInBtn" class="demo-signin-btn">
                 <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" width="20" height="20">
@@ -99,21 +340,17 @@ function initializeGoogleAuth() {
             </button>
         `;
         signInButton.style.display = 'block';
-        
+
         document.getElementById('demoSignInBtn').addEventListener('click', () => {
-            // Simulate successful Google authentication
             simulateGoogleSignIn();
         });
-        
+
         authInitialized = true;
         return;
     }
-    
-    // Production mode - use actual Google Identity Services
+
     if (typeof google !== 'undefined' && google.accounts) {
         authInitialized = true;
-        
-        // Initialize Google Sign-In
         google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
             callback: handleCredentialResponse,
@@ -121,7 +358,6 @@ function initializeGoogleAuth() {
             cancel_on_tap_outside: true
         });
 
-        // Render the sign-in button
         google.accounts.id.renderButton(signInButton, {
             theme: 'outline',
             size: 'large',
@@ -129,37 +365,28 @@ function initializeGoogleAuth() {
             shape: 'rectangular',
             width: 200
         });
-        
+
         signInButton.style.display = 'block';
     } else {
-        // Retry after a short delay if Google services aren't loaded yet
         setTimeout(initializeGoogleAuth, 100);
     }
 }
 
 function simulateGoogleSignIn() {
-    // Simulate a successful Google sign-in for demo purposes
     currentUser = {
         id: 'demo_user_123',
         name: 'Demo User',
         email: 'demo@example.com',
         picture: 'https://via.placeholder.com/32x32/667eea/white?text=DU'
     };
-    
-    // Save auth state
     saveAuthState();
-    
-    // Update UI
     updateAuthUI();
-    
     console.log('Demo user signed in:', currentUser.name);
 }
 
 function handleCredentialResponse(response) {
     try {
-        // Decode the JWT token to get user info
         const userInfo = parseJwtPayload(response.credential);
-        
         currentUser = {
             id: userInfo.sub,
             name: userInfo.name,
@@ -167,13 +394,8 @@ function handleCredentialResponse(response) {
             picture: userInfo.picture,
             credential: response.credential
         };
-        
-        // Save auth state
         saveAuthState();
-        
-        // Update UI
         updateAuthUI();
-        
         console.log('User signed in:', currentUser.name);
     } catch (error) {
         console.error('Error handling credential response:', error);
@@ -183,44 +405,37 @@ function handleCredentialResponse(response) {
 function parseJwtPayload(token) {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
+    const jsonPayload = decodeURIComponent(
+        atob(base64).split('').map(c =>
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join('')
+    );
     return JSON.parse(jsonPayload);
 }
 
 function updateAuthUI() {
     if (currentUser) {
-        // Show user profile, hide sign-in button
-        userAvatar.src = currentUser.picture;
-        userName.textContent = currentUser.name;
+        userAvatar.src = currentUser.picture || '';
+        userName.textContent = currentUser.name || '';
+        userEmail.textContent = currentUser.email || '';
         userProfile.style.display = 'flex';
         signInButton.style.display = 'none';
     } else {
-        // Show sign-in button, hide user profile
         userProfile.style.display = 'none';
-        if (authInitialized) {
-            signInButton.style.display = 'block';
-        }
+        if (authInitialized) signInButton.style.display = 'block';
     }
+    updateUserDisplay();
 }
 
 function signOut() {
     if (confirm('Are you sure you want to sign out?')) {
         currentUser = null;
-        
-        // Clear saved auth state
         localStorage.removeItem('snapview_auth');
         sessionStorage.removeItem('snapview_auth');
-        
-        // Update UI
         updateAuthUI();
-        
-        // Sign out from Google
         if (typeof google !== 'undefined' && google.accounts) {
             google.accounts.id.disableAutoSelect();
         }
-        
         console.log('User signed out');
     }
 }
@@ -232,10 +447,9 @@ function saveAuthState() {
             name: currentUser.name,
             email: currentUser.email,
             picture: currentUser.picture,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            isPremium: currentUser.isPremium || false
         };
-        
-        // Save to both localStorage and sessionStorage for flexibility
         localStorage.setItem('snapview_auth', JSON.stringify(authData));
         sessionStorage.setItem('snapview_auth', JSON.stringify(authData));
     }
@@ -243,32 +457,24 @@ function saveAuthState() {
 
 function loadAuthState() {
     try {
-        // Try sessionStorage first, then localStorage
         let authData = sessionStorage.getItem('snapview_auth') || localStorage.getItem('snapview_auth');
-        
         if (authData) {
             authData = JSON.parse(authData);
-            
-            // Check if auth data is not too old (24 hours)
-            const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+            const maxAge = 24 * 60 * 60 * 1000;
             if (Date.now() - authData.timestamp < maxAge) {
                 currentUser = authData;
                 updateAuthUI();
                 console.log('Restored auth state for:', currentUser.name);
             } else {
-                // Clear expired auth data
                 localStorage.removeItem('snapview_auth');
                 sessionStorage.removeItem('snapview_auth');
             }
         }
     } catch (error) {
         console.error('Error loading auth state:', error);
-        // Clear corrupted auth data
         localStorage.removeItem('snapview_auth');
         sessionStorage.removeItem('snapview_auth');
     }
-    
-    // Always update UI to show correct state
     updateAuthUI();
 }
 
@@ -850,6 +1056,11 @@ async function switchDesktopCamera() {
 
 // Analysis functions
 function analyzeNow() {
+    if (!currentUser) {
+        alert('Please log in to use analysis features');
+        return;
+    }
+    
     if (!isAnalyzing) {
         analyzeFrame();
     }
@@ -870,6 +1081,11 @@ function captureFrame() {
 }
 
 async function analyzeFrame() {
+    // Check usage limits before proceeding
+    if (!checkUsageLimit()) {
+        return;
+    }
+
     if (isAnalyzing) {
         alert('Analysis already in progress. Please wait...');
         return;
@@ -899,7 +1115,9 @@ async function analyzeFrame() {
             body: JSON.stringify({
                 image: imageData,
                 primaryPrompt: primaryPrompt.value.trim() || 'Describe what you see in this image.',
-                secondaryPrompt: secondaryPrompt.value.trim() || 'Provide additional insights about this scene.'
+                secondaryPrompt: secondaryPrompt.value.trim() || 'Provide additional insights about this scene.',
+                userEmail: currentUser?.email || null,
+                isPremium: currentUser?.isPremium || false
             }),
         });
 
@@ -909,6 +1127,9 @@ async function analyzeFrame() {
         }
 
         const data = await response.json();
+        
+        // Increment usage count for successful analysis
+        incrementUsage();
         
         const responseEntry = {
             timestamp: new Date().toLocaleString(),
@@ -952,8 +1173,17 @@ async function analyzeFrame() {
         updateResponsesDisplay();
     } finally {
         isAnalyzing = false;
-        analyzeNowButton.disabled = false;
-        analysisStatus.textContent = 'Analysis: Ready';
+        
+        // Update button state based on current usage
+        if (currentUser && !currentUser.isPremium && currentUser.usageCount >= FREE_USAGE_LIMIT) {
+            analyzeNowButton.disabled = true;
+            analyzeNowButton.textContent = 'Daily Limit Reached';
+            analysisStatus.textContent = 'Analysis: Daily limit reached - Upgrade for unlimited access';
+        } else {
+            analyzeNowButton.disabled = false;
+            analyzeNowButton.textContent = 'Analyze Now';
+            updateUserDisplay(); // This will update the status text
+        }
         
         setTimeout(() => {
             removeFlashEffect();
