@@ -1,6 +1,8 @@
 // Configuration - REPLACE WITH YOUR CLOUDFLARE WORKER URL
 const WORKER_URL = 'backend-worker.sethkeddy.workers.dev';
 
+
+
 // Stripe Configuration - REPLACE WITH YOUR ACTUAL STRIPE KEYS
 // Get these from your Stripe Dashboard at https://dashboard.stripe.com/apikeys
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51234567890'; // Replace with your actual publishable key
@@ -10,6 +12,17 @@ const STRIPE_PRICE_ID = 'price_1234567890'; // Replace with your actual price ID
 let currentUser = null;
 let userUsageCount = 0;
 const FREE_USAGE_LIMIT = 10; // Free users get 10 analyses per day
+
+// Google OAuth Configuration - Replace with your actual client ID
+const GOOGLE_CLIENT_ID = 'your-google-client-id.apps.googleusercontent.com';
+
+// Demo mode for testing (set to false in production)
+const DEMO_MODE = true;
+
+// Authentication state
+let currentUser = null;
+let authInitialized = false;
+
 
 // DOM Elements
 const webcamFeed = document.getElementById('webcamFeed');
@@ -34,7 +47,9 @@ const flashOverlay = document.getElementById('flashOverlay');
 const analysisIndicator = document.getElementById('analysisIndicator');
 const frameIndicator = document.getElementById('frameIndicator');
 
-// User section elements
+// ===============================
+// User Section Elements
+// ===============================
 const userSection = document.getElementById('userSection');
 const userInfo = document.getElementById('userInfo');
 const loginForm = document.getElementById('loginForm');
@@ -47,6 +62,25 @@ const logoutButton = document.getElementById('logoutButton');
 const usageInfo = document.getElementById('usageInfo');
 const usageProgress = document.getElementById('usageProgress');
 const usageText = document.getElementById('usageText');
+
+// ===============================
+// Google Auth & Profile Elements
+// ===============================
+const signInButton = document.getElementById('signInButton');
+const userProfile = document.getElementById('userProfile');
+const userAvatar = document.getElementById('userAvatar');
+const userName = document.getElementById('userName');
+const signOutButton = document.getElementById('signOutButton');
+
+// ===============================
+// Analysis & Results Elements
+// ===============================
+const analysisProgressCard = document.getElementById('analysisProgressCard');
+const latestResultCard = document.getElementById('latestResultCard');
+const latestPrimaryResult = document.getElementById('latestPrimaryResult');
+const latestSecondaryResult = document.getElementById('latestSecondaryResult');
+const resultTimestamp = document.getElementById('resultTimestamp');
+
 
 // State variables
 let currentStream = null;
@@ -68,6 +102,7 @@ exportButton.addEventListener('click', exportToCSV);
 clearButton.addEventListener('click', clearHistory);
 switchCameraButton.addEventListener('click', switchCamera);
 cameraSelect.addEventListener('change', switchCamera);
+signOutButton.addEventListener('click', signOut);
 
 // User authentication event listeners
 loginButton.addEventListener('click', handleLogin);
@@ -253,46 +288,194 @@ window.addEventListener('load', () => {
         initializeCameras();
     }
     
-    // Initialize user system
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize both auth systems
+    initializeGoogleAuth();
     initializeUserSystem();
-    
+
+    // Load saved auth state
+    loadAuthState();
+
     // Check for payment success/cancellation in URL params
     checkPaymentStatus();
 });
 
+// ===============================
+// Email/User System (copilot/fix-3)
+// ===============================
 function initializeUserSystem() {
-    // Check if user was previously logged in
     const lastEmail = localStorage.getItem('snapview_last_email');
     if (lastEmail) {
         emailInput.value = lastEmail;
     }
-    
     updateUserDisplay();
 }
 
 function checkPaymentStatus() {
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     if (urlParams.get('success') === 'true') {
-        // Payment was successful
         if (currentUser) {
             currentUser.isPremium = true;
             saveUserData();
             updateUserDisplay();
         }
-        
-        // Show success message
         alert('🎉 Payment successful! You now have unlimited access to SnapView analyses.');
-        
-        // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
     } else if (urlParams.get('canceled') === 'true') {
-        // Payment was canceled
         alert('Payment was canceled. You can upgrade anytime by clicking the Upgrade button.');
-        
-        // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
     }
+}
+
+// ===============================
+// Google Authentication (main)
+// ===============================
+function initializeGoogleAuth() {
+    if (DEMO_MODE) {
+        signInButton.innerHTML = `
+            <button id="demoSignInBtn" class="demo-signin-btn">
+                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" width="20" height="20">
+                Sign in with Google (Demo)
+            </button>
+        `;
+        signInButton.style.display = 'block';
+
+        document.getElementById('demoSignInBtn').addEventListener('click', () => {
+            simulateGoogleSignIn();
+        });
+
+        authInitialized = true;
+        return;
+    }
+
+    if (typeof google !== 'undefined' && google.accounts) {
+        authInitialized = true;
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+        });
+
+        google.accounts.id.renderButton(signInButton, {
+            theme: 'outline',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            width: 200
+        });
+
+        signInButton.style.display = 'block';
+    } else {
+        setTimeout(initializeGoogleAuth, 100);
+    }
+}
+
+function simulateGoogleSignIn() {
+    currentUser = {
+        id: 'demo_user_123',
+        name: 'Demo User',
+        email: 'demo@example.com',
+        picture: 'https://via.placeholder.com/32x32/667eea/white?text=DU'
+    };
+    saveAuthState();
+    updateAuthUI();
+    console.log('Demo user signed in:', currentUser.name);
+}
+
+function handleCredentialResponse(response) {
+    try {
+        const userInfo = parseJwtPayload(response.credential);
+        currentUser = {
+            id: userInfo.sub,
+            name: userInfo.name,
+            email: userInfo.email,
+            picture: userInfo.picture,
+            credential: response.credential
+        };
+        saveAuthState();
+        updateAuthUI();
+        console.log('User signed in:', currentUser.name);
+    } catch (error) {
+        console.error('Error handling credential response:', error);
+    }
+}
+
+function parseJwtPayload(token) {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+        atob(base64).split('').map(c =>
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join('')
+    );
+    return JSON.parse(jsonPayload);
+}
+
+function updateAuthUI() {
+    if (currentUser) {
+        userAvatar.src = currentUser.picture || '';
+        userName.textContent = currentUser.name || '';
+        userEmail.textContent = currentUser.email || '';
+        userProfile.style.display = 'flex';
+        signInButton.style.display = 'none';
+    } else {
+        userProfile.style.display = 'none';
+        if (authInitialized) signInButton.style.display = 'block';
+    }
+    updateUserDisplay();
+}
+
+function signOut() {
+    if (confirm('Are you sure you want to sign out?')) {
+        currentUser = null;
+        localStorage.removeItem('snapview_auth');
+        sessionStorage.removeItem('snapview_auth');
+        updateAuthUI();
+        if (typeof google !== 'undefined' && google.accounts) {
+            google.accounts.id.disableAutoSelect();
+        }
+        console.log('User signed out');
+    }
+}
+
+function saveAuthState() {
+    if (currentUser) {
+        const authData = {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            picture: currentUser.picture,
+            timestamp: Date.now(),
+            isPremium: currentUser.isPremium || false
+        };
+        localStorage.setItem('snapview_auth', JSON.stringify(authData));
+        sessionStorage.setItem('snapview_auth', JSON.stringify(authData));
+    }
+}
+
+function loadAuthState() {
+    try {
+        let authData = sessionStorage.getItem('snapview_auth') || localStorage.getItem('snapview_auth');
+        if (authData) {
+            authData = JSON.parse(authData);
+            const maxAge = 24 * 60 * 60 * 1000;
+            if (Date.now() - authData.timestamp < maxAge) {
+                currentUser = authData;
+                updateAuthUI();
+                console.log('Restored auth state for:', currentUser.name);
+            } else {
+                localStorage.removeItem('snapview_auth');
+                sessionStorage.removeItem('snapview_auth');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading auth state:', error);
+        localStorage.removeItem('snapview_auth');
+        sessionStorage.removeItem('snapview_auth');
+    }
+    updateAuthUI();
 }
 
 // Enhanced permission check for Safari
@@ -914,6 +1097,9 @@ async function analyzeFrame() {
     
     analyzeNowButton.disabled = true;
     analysisStatus.textContent = 'Analysis: Processing...';
+    
+    // Show progress card with animation
+    showProgressCard();
 
     try {
         const imageData = captureFrame();
@@ -954,6 +1140,13 @@ async function analyzeFrame() {
         };
 
         responses.unshift(responseEntry);
+        
+        // Hide progress card and show result with smooth transition
+        hideProgressCard();
+        setTimeout(() => {
+            showLatestResult(responseEntry);
+        }, 200);
+        
         updateResponsesDisplay();
         enableExport();
 
@@ -970,6 +1163,13 @@ async function analyzeFrame() {
         };
 
         responses.unshift(errorEntry);
+        
+        // Hide progress card and show error result
+        hideProgressCard();
+        setTimeout(() => {
+            showLatestResult(errorEntry);
+        }, 200);
+        
         updateResponsesDisplay();
     } finally {
         isAnalyzing = false;
@@ -1078,6 +1278,69 @@ Include urgency if appropriate (e.g., “Great deal  priced to sell!” or “Ha
 
 
 // Display and utility functions
+function showProgressCard() {
+    if (analysisProgressCard) {
+        analysisProgressCard.style.display = 'block';
+        // Force reflow for animation
+        analysisProgressCard.offsetHeight;
+        analysisProgressCard.classList.add('show');
+    }
+}
+
+function hideProgressCard() {
+    if (analysisProgressCard) {
+        analysisProgressCard.classList.remove('show');
+        setTimeout(() => {
+            analysisProgressCard.style.display = 'none';
+        }, 400);
+    }
+}
+
+function showLatestResult(responseEntry) {
+    if (!latestResultCard || !latestPrimaryResult || !latestSecondaryResult || !resultTimestamp) {
+        return;
+    }
+    
+    // Update content
+    latestPrimaryResult.textContent = responseEntry.primaryResponse;
+    latestSecondaryResult.textContent = responseEntry.secondaryResponse;
+    resultTimestamp.textContent = responseEntry.timestamp;
+    
+    // Update styling for errors
+    if (responseEntry.isError) {
+        latestResultCard.style.borderColor = '#ff6b6b';
+        latestResultCard.querySelector('.result-header').style.background = 
+            'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)';
+    } else {
+        latestResultCard.style.borderColor = '#e9ecef';
+        latestResultCard.querySelector('.result-header').style.background = 
+            'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+    }
+    
+    // Show with animation
+    latestResultCard.style.display = 'block';
+    // Force reflow for animation
+    latestResultCard.offsetHeight;
+    latestResultCard.classList.add('show');
+    
+    // Smooth scroll to result
+    setTimeout(() => {
+        latestResultCard.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest',
+            inline: 'nearest'
+        });
+    }, 300);
+    
+    // Add gentle pulse effect to draw attention
+    setTimeout(() => {
+        latestResultCard.style.animation = 'gentlePulse 0.6s ease-out';
+        setTimeout(() => {
+            latestResultCard.style.animation = '';
+        }, 600);
+    }, 400);
+}
+
 function updateResponsesDisplay() {
     if (responses.length === 0) {
         responsesList.innerHTML = `

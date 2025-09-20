@@ -6,30 +6,54 @@
     <title>SnapView - Dual Analysis</title>
     <link id="mainStylesheet" rel="stylesheet" href="style.css">
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
  <div class="container">
         <div class="header">
-            <h1>SnapView</h1>
-            <p>Real-time dual-analysis of camera feed with ChatGPT</p>
-            
-            <!-- User Account Section -->
-            <div class="user-section" id="userSection">
-                <div class="user-info" id="userInfo" style="display: none;">
-                    <span id="userEmail"></span>
+<div class="header-content">
+    <!-- Title Section -->
+    <div class="title-section">
+        <h1>SnapView</h1>
+        <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+    </div>
+
+    <!-- Authentication & User Section -->
+    <div class="auth-section">
+        <div id="authContainer">
+
+            <!-- Google Sign-In -->
+            <div id="signInButton" class="google-signin-button" style="display: none;"></div>
+
+            <!-- User Profile -->
+            <div id="userProfile" class="user-profile" style="display: none;">
+                <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
+                <div class="user-info">
+                    <div id="userName" class="user-name"></div>
+                    <div id="userEmail" class="user-email"></div>
                     <span id="userStatus" class="user-status"></span>
                     <button id="upgradeButton" class="btn upgrade" style="display: none;">⭐ Upgrade</button>
-                    <button id="logoutButton" class="btn secondary small">Logout</button>
+                    <button id="signOutButton" class="btn secondary small">Sign Out</button>
                 </div>
-                <div class="login-form" id="loginForm">
-                    <input type="email" id="emailInput" placeholder="Enter your email to track usage" required>
-                    <button id="loginButton" class="btn primary">Continue</button>
+            </div>
+
+            <!-- Email Login (Fallback / Tracking Only) -->
+            <div class="login-form" id="loginForm">
+                <input type="email" id="emailInput" placeholder="Enter your email to track usage" required>
+                <button id="loginButton" class="btn primary">Continue</button>
+            </div>
+
+            <!-- Usage Info -->
+            <div class="usage-info" id="usageInfo" style="display: none;">
+                <div class="usage-bar">
+                    <div class="usage-progress" id="usageProgress"></div>
                 </div>
-                <div class="usage-info" id="usageInfo" style="display: none;">
-                    <div class="usage-bar">
-                        <div class="usage-progress" id="usageProgress"></div>
-                    </div>
-                    <div class="usage-text" id="usageText"></div>
+                <div class="usage-text" id="usageText"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
                 </div>
             </div>
         </div>
@@ -71,6 +95,17 @@
                     <div id="cameraStatus">Camera: Disconnected</div>
                     <div id="analysisStatus">Analysis: Stopped</div>
                 </div>
+                
+                <!-- Analysis progress indicator -->
+                <div id="analysisProgressCard" class="analysis-progress-card" style="display: none;">
+                    <div class="progress-content">
+                        <div class="progress-spinner"></div>
+                        <div class="progress-text">
+                            <h4>Analyzing Image...</h4>
+                            <p>Processing your prompts with AI vision</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="prompts-section">
@@ -95,12 +130,30 @@
                     <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
                     <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
                 </div>
+                
+                <!-- Latest Result Display -->
+                <div id="latestResultCard" class="latest-result-card" style="display: none;">
+                    <div class="result-header">
+                        <h4>Latest Analysis Result</h4>
+                        <span id="resultTimestamp" class="result-timestamp"></span>
+                    </div>
+                    <div class="result-content">
+                        <div class="result-section primary">
+                            <div class="result-label">Primary Analysis</div>
+                            <div id="latestPrimaryResult" class="result-text"></div>
+                        </div>
+                        <div class="result-section secondary">
+                            <div class="result-label">Follow-up Analysis</div>
+                            <div id="latestSecondaryResult" class="result-text"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="responses-table">
             <div class="table-header">
-                <h3>Analysis History</h3>
+                <h3>Complete Analysis History</h3>
                 <div class="table-controls">
                     <button id="exportButton" class="btn primary" disabled>Export CSV</button>
                     <button id="clearButton" class="btn danger">Clear History</button>
