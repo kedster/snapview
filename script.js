@@ -1,6 +1,8 @@
 // Configuration - REPLACE WITH YOUR CLOUDFLARE WORKER URL
 const WORKER_URL = 'backend-worker.sethkeddy.workers.dev';
 
+
+
 // Stripe Configuration - REPLACE WITH YOUR ACTUAL STRIPE KEYS
 // Get these from your Stripe Dashboard at https://dashboard.stripe.com/apikeys
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51234567890'; // Replace with your actual publishable key
@@ -18,71 +20,8 @@ const GOOGLE_CLIENT_ID = 'your-google-client-id.apps.googleusercontent.com';
 const DEMO_MODE = true;
 
 // Authentication state
+let currentUser = null;
 let authInitialized = false;
-
-// New Theme: Section Expansion Functionality
-function initSectionExpansion() {
-    const sections = document.querySelectorAll('.bl-main > section');
-    const main = document.querySelector('.bl-main');
-    let currentSection = null;
-    let isExpanded = false;
-    
-    sections.forEach(section => {
-        const box = section.querySelector('.bl-box');
-        const closeBtn = section.querySelector('.bl-icon-close');
-        
-        if (box) {
-            box.addEventListener('click', () => {
-                if (isExpanded) return;
-                
-                // Add classes for expansion
-                main.classList.add('bl-expand-item');
-                section.classList.add('bl-expand', 'bl-expand-top');
-                
-                currentSection = section;
-                isExpanded = true;
-            });
-        }
-        
-        if (closeBtn) {
-            closeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                
-                if (!isExpanded) return;
-                
-                // Remove expansion classes
-                main.classList.remove('bl-expand-item');
-                
-                if (currentSection) {
-                    currentSection.classList.remove('bl-expand', 'bl-expand-top');
-                }
-                
-                currentSection = null;
-                isExpanded = false;
-            });
-        }
-    });
-    
-    // Close on escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isExpanded) {
-            // Remove expansion classes
-            main.classList.remove('bl-expand-item');
-            
-            if (currentSection) {
-                currentSection.classList.remove('bl-expand', 'bl-expand-top');
-            }
-            
-            currentSection = null;
-            isExpanded = false;
-        }
-    });
-}
-
-// Initialize the section manager
-document.addEventListener('DOMContentLoaded', () => {
-    initSectionExpansion();
-});
 
 
 // DOM Elements
