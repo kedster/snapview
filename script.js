@@ -1,8 +1,6 @@
 // Configuration - REPLACE WITH YOUR CLOUDFLARE WORKER URL
 const WORKER_URL = 'backend-worker.sethkeddy.workers.dev';
 
-
-
 // Stripe Configuration - REPLACE WITH YOUR ACTUAL STRIPE KEYS
 // Get these from your Stripe Dashboard at https://dashboard.stripe.com/apikeys
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51234567890'; // Replace with your actual publishable key
@@ -20,8 +18,84 @@ const GOOGLE_CLIENT_ID = 'your-google-client-id.apps.googleusercontent.com';
 const DEMO_MODE = true;
 
 // Authentication state
-let currentUser = null;
 let authInitialized = false;
+
+// New Theme: Section Expansion Functionality
+class SectionManager {
+    constructor() {
+        this.currentSection = null;
+        this.isExpanded = false;
+        this.init();
+    }
+    
+    init() {
+        const sections = document.querySelectorAll('.bl-main > section');
+        const main = document.querySelector('.bl-main');
+        
+        sections.forEach(section => {
+            const box = section.querySelector('.bl-box');
+            const closeBtn = section.querySelector('.bl-icon-close');
+            
+            if (box) {
+                box.addEventListener('click', () => this.expandSection(section));
+            }
+            
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.collapseSection();
+                });
+            }
+        });
+        
+        // Close on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isExpanded) {
+                this.collapseSection();
+            }
+        });
+    }
+    
+    expandSection(section) {
+        if (this.isExpanded) return;
+        
+        const main = document.querySelector('.bl-main');
+        
+        // Add classes for expansion
+        main.classList.add('bl-expand-item');
+        section.classList.add('bl-expand', 'bl-expand-top');
+        
+        this.currentSection = section;
+        this.isExpanded = true;
+        
+        // Update status if needed
+        const contentType = section.getAttribute('data-content');
+        if (contentType === 'camera') {
+            // Camera section opened - nothing special needed
+        }
+    }
+    
+    collapseSection() {
+        if (!this.isExpanded) return;
+        
+        const main = document.querySelector('.bl-main');
+        
+        // Remove expansion classes
+        main.classList.remove('bl-expand-item');
+        
+        if (this.currentSection) {
+            this.currentSection.classList.remove('bl-expand', 'bl-expand-top');
+        }
+        
+        this.currentSection = null;
+        this.isExpanded = false;
+    }
+}
+
+// Initialize the section manager
+document.addEventListener('DOMContentLoaded', () => {
+    new SectionManager();
+});
 
 
 // DOM Elements

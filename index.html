@@ -9,160 +9,189 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
- <div class="container">
-        <div class="header">
-<div class="header-content">
-    <!-- Title Section -->
-    <div class="title-section">
-        <h1>SnapView</h1>
-        <p>Real-time dual-analysis of camera feed with ChatGPT</p>
-        <button id="helpButton" class="help-btn" title="Show walkthrough">❓ Help</button>
-    </div>
-
-    <!-- Authentication & User Section -->
-    <div class="auth-section">
-        <div id="authContainer">
-
-            <!-- Google Sign-In -->
-            <div id="signInButton" class="google-signin-button" style="display: none;"></div>
-
-            <!-- User Profile -->
-            <div id="userProfile" class="user-profile" style="display: none;">
-                <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
-                <div class="user-info">
-                    <div id="userName" class="user-name"></div>
-                    <div id="userEmail" class="user-email"></div>
-                    <span id="userStatus" class="user-status"></span>
-                    <button id="upgradeButton" class="btn upgrade" style="display: none;">⭐ Upgrade</button>
-                    <button id="signOutButton" class="btn secondary small">Sign Out</button>
+    <div class="container">
+        <div class="bl-main">
+            <!-- Camera Section -->
+            <section data-content="camera">
+                <div class="bl-box">
+                    <span class="bl-icon bl-icon-about"></span>
+                    <h2>Camera Feed</h2>
                 </div>
-            </div>
+                <div class="bl-content">
+                    <h2>Camera Feed</h2>
+                    <div class="video-container">
+                        <video id="webcamFeed" autoplay playsinline muted></video>
+                        <canvas id="captureCanvas"></canvas>
+                        <div id="flashOverlay" class="flash-overlay"></div>
+                        <div id="statusOverlay" class="status-overlay">
+                            <div>
+                                <div id="statusText">Click "Start Camera" to begin</div>
+                                <div id="loadingSpinner" class="loading" style="display: none; margin: 10px auto;"></div>
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- Email Login (Fallback / Tracking Only) -->
-            <div class="login-form" id="loginForm">
-                <input type="email" id="emailInput" placeholder="Enter your email to track usage" required>
-                <button id="loginButton" class="btn primary">Continue</button>
-            </div>
+                    <div class="camera-controls">
+                        <div class="camera-switch">
+                            <label for="cameraSelect">Camera:</label>
+                            <select id="cameraSelect">
+                                <option value="">Select camera...</option>
+                            </select>
+                        </div>
+                        <button id="switchCameraButton" class="btn secondary" disabled>🔄 Switch</button>
+                    </div>
 
-            <!-- Usage Info -->
-            <div class="usage-info" id="usageInfo" style="display: none;">
-                <div class="usage-bar">
-                    <div class="usage-progress" id="usageProgress"></div>
+                    <div class="controls">
+                        <button id="startButton" class="btn primary">Start Camera</button>
+                        <button id="stopButton" class="btn danger" disabled>Stop Camera</button>
+                        <button id="analyzeNowButton" class="btn success" disabled>Analyze Now</button>
+                    </div>
+
+                    <div class="status-info">
+                        <div id="cameraStatus">Camera: Disconnected</div>
+                        <div id="analysisStatus">Analysis: Stopped</div>
+                    </div>
                 </div>
-                <div class="usage-text" id="usageText"></div>
-            </div>
-        </div>
-    </div>
-</div>
+                <span class="bl-icon-close">×</span>
+            </section>
 
-        </div>
+            <!-- Analysis Section -->
+            <section data-content="analysis">
+                <div class="bl-box">
+                    <span class="bl-icon bl-icon-works"></span>
+                    <h2>Analysis</h2>
+                </div>
+                <div class="bl-content">
+                    <h2>Analysis Prompts</h2>
+                    
+                    <div class="preset-buttons">
+                        <button class="preset-btn repair" onclick="setRepairPrompts()">🔧 Repair</button>
+                        <button class="preset-btn nickname" onclick="setNicknamePrompts()">🏷️ Nickname</button>
+                        <button class="preset-btn identify" onclick="setIdentifyPrompts()">🔍 Identify</button>
+                        <button class="preset-btn nice" onclick="setNicePrompts()">😊 Nice</button>
+                        <button class="preset-btn poetic" onclick="setPoeticPrompts()">📝 Poetic</button>
+                        <button class="preset-btn ForSale" onclick="setForSale()">💰 For Sale</button>
+                        <button class="preset-btn Marketable" onclick="setMarketable()">📢 Marketable</button>
+                    </div>
+                    
+                    <div class="prompt-group">
+                        <label for="primaryPrompt">Primary Analysis Prompt:</label>
+                        <textarea id="primaryPrompt" placeholder="Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.">Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.</textarea>
+                    </div>
 
-        <div class="main-content">
-            <div class="video-section">
-                <h3 style="margin-bottom: 20px; color: #495057;">Camera Feed</h3>
-                
-                <div class="video-container">
-                    <video id="webcamFeed" autoplay playsinline muted></video>
-                    <canvas id="captureCanvas"></canvas>
-                    <div id="flashOverlay" class="flash-overlay"></div>
-                    <div id="statusOverlay" class="status-overlay">
-                        <div>
-                            <div id="statusText">Click "Start Camera" to begin</div>
-                            <div id="loadingSpinner" class="loading" style="display: none; margin: 10px auto;"></div>
+                    <div class="prompt-group">
+                        <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
+                        <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
+                    </div>
+
+                    <!-- Analysis progress indicator -->
+                    <div id="analysisProgressCard" class="analysis-progress-card" style="display: none;">
+                        <div class="progress-content">
+                            <div class="progress-spinner"></div>
+                            <div class="progress-text">
+                                <h4>Analyzing Image...</h4>
+                                <p>Processing your prompts with AI vision</p>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <span class="bl-icon-close">×</span>
+            </section>
 
-                <div class="camera-controls">
-                    <div class="camera-switch">
-                        <label for="cameraSelect">Camera:</label>
-                        <select id="cameraSelect">
-                            <option value="">Select camera...</option>
-                        </select>
+            <!-- Results Section -->
+            <section data-content="results">
+                <div class="bl-box">
+                    <span class="bl-icon bl-icon-blog"></span>
+                    <h2>Results</h2>
+                </div>
+                <div class="bl-content">
+                    <h2>Analysis Results</h2>
+                    
+                    <!-- Latest Result Display -->
+                    <div id="latestResultCard" class="latest-result-card" style="display: none;">
+                        <div class="result-header">
+                            <h4>Latest Analysis Result</h4>
+                            <span id="resultTimestamp" class="result-timestamp"></span>
+                        </div>
+                        <div class="result-content">
+                            <div class="result-section primary">
+                                <div class="result-label">Primary Analysis</div>
+                                <div id="latestPrimaryResult" class="result-text"></div>
+                            </div>
+                            <div class="result-section secondary">
+                                <div class="result-label">Follow-up Analysis</div>
+                                <div id="latestSecondaryResult" class="result-text"></div>
+                            </div>
+                        </div>
                     </div>
-                    <button id="switchCameraButton" class="btn secondary" disabled>🔄 Switch</button>
-                </div>
 
-                <div class="controls">
-                    <button id="startButton" class="btn primary">Start Camera</button>
-                    <button id="stopButton" class="btn danger" disabled>Stop Camera</button>
-                    <button id="analyzeNowButton" class="btn success" disabled>Analyze Now</button>
-                </div>
-
-
-                <div class="status-info">
-                    <div id="cameraStatus">Camera: Disconnected</div>
-                    <div id="analysisStatus">Analysis: Stopped</div>
-                </div>
-                
-                <!-- Analysis progress indicator -->
-                <div id="analysisProgressCard" class="analysis-progress-card" style="display: none;">
-                    <div class="progress-content">
-                        <div class="progress-spinner"></div>
-                        <div class="progress-text">
-                            <h4>Analyzing Image...</h4>
-                            <p>Processing your prompts with AI vision</p>
+                    <div class="responses-table">
+                        <div class="table-header">
+                            <h3>Complete Analysis History</h3>
+                            <div class="table-controls">
+                                <button id="exportButton" class="btn primary" disabled>Export CSV</button>
+                                <button id="clearButton" class="btn danger">Clear History</button>
+                            </div>
+                        </div>
+                        <div class="table-content" id="responsesList">
+                            <div style="text-align: center; padding: 40px; color: #6c757d;">
+                                No analyses yet. Start the camera and begin analysis to see results here.
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+                <span class="bl-icon-close">×</span>
+            </section>
 
-            <div class="prompts-section">
-                <h3 style="margin-bottom: 20px; color: #495057;">Analysis Prompts</h3>
-                
-                <div class="preset-buttons">
-                    <button class="preset-btn repair" onclick="setRepairPrompts()">🔧 Repair</button>
-                    <button class="preset-btn nickname" onclick="setNicknamePrompts()">🏷️ Nickname</button>
-                    <button class="preset-btn identify" onclick="setIdentifyPrompts()">🔍 Identify</button>
-                    <button class="preset-btn nice" onclick="setNicePrompts()">😊 Nice</button>
-                    <button class="preset-btn poetic" onclick="setPoeticPrompts()">📝 Poetic</button>
-                    <button class="preset-btn ForSale" onclick="setForSale()">💰 For Sale</button>
-                    <button class="preset-btn Marketable" onclick="setMarketable()">📢 Marketable</button>
+            <!-- About/Help Section -->
+            <section data-content="help">
+                <div class="bl-box">
+                    <span class="bl-icon bl-icon-contact"></span>
+                    <h2>About</h2>
                 </div>
-                
-                <div class="prompt-group">
-                    <label for="primaryPrompt">Primary Analysis Prompt:</label>
-                    <textarea id="primaryPrompt" placeholder="Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.">Describe what you see in this image in detail. Focus on objects, people, activities, and the overall scene.</textarea>
-                </div>
+                <div class="bl-content">
+                    <h2>SnapView - Dual Analysis</h2>
+                    <p>Real-time dual-analysis of camera feed with ChatGPT</p>
+                    
+                    <!-- Authentication & User Section -->
+                    <div class="auth-section">
+                        <div id="authContainer">
+                            <!-- Google Sign-In -->
+                            <div id="signInButton" class="google-signin-button" style="display: none;"></div>
 
-                <div class="prompt-group">
-                    <label for="secondaryPrompt">Follow-up Analysis Prompt:</label>
-                    <textarea id="secondaryPrompt" placeholder="Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations.">Based on the initial analysis, provide insights about potential actions, safety concerns, or interesting observations about what's happening in the scene.</textarea>
-                </div>
-                
-                <!-- Latest Result Display -->
-                <div id="latestResultCard" class="latest-result-card" style="display: none;">
-                    <div class="result-header">
-                        <h4>Latest Analysis Result</h4>
-                        <span id="resultTimestamp" class="result-timestamp"></span>
-                    </div>
-                    <div class="result-content">
-                        <div class="result-section primary">
-                            <div class="result-label">Primary Analysis</div>
-                            <div id="latestPrimaryResult" class="result-text"></div>
+                            <!-- User Profile -->
+                            <div id="userProfile" class="user-profile" style="display: none;">
+                                <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
+                                <div class="user-info">
+                                    <div id="userName" class="user-name"></div>
+                                    <div id="userEmail" class="user-email"></div>
+                                    <span id="userStatus" class="user-status"></span>
+                                    <button id="upgradeButton" class="btn upgrade" style="display: none;">⭐ Upgrade</button>
+                                    <button id="signOutButton" class="btn secondary small">Sign Out</button>
+                                </div>
+                            </div>
+
+                            <!-- Email Login (Fallback / Tracking Only) -->
+                            <div class="login-form" id="loginForm">
+                                <input type="email" id="emailInput" placeholder="Enter your email to track usage" required>
+                                <button id="loginButton" class="btn primary">Continue</button>
+                            </div>
+
+                            <!-- Usage Info -->
+                            <div class="usage-info" id="usageInfo" style="display: none;">
+                                <div class="usage-bar">
+                                    <div class="usage-progress" id="usageProgress"></div>
+                                </div>
+                                <div class="usage-text" id="usageText"></div>
+                            </div>
                         </div>
-                        <div class="result-section secondary">
-                            <div class="result-label">Follow-up Analysis</div>
-                            <div id="latestSecondaryResult" class="result-text"></div>
-                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="responses-table">
-            <div class="table-header">
-                <h3>Complete Analysis History</h3>
-                <div class="table-controls">
-                    <button id="exportButton" class="btn primary" disabled>Export CSV</button>
-                    <button id="clearButton" class="btn danger">Clear History</button>
+                    <!-- Help Button -->
+                    <button id="helpButton" class="help-btn" title="Show walkthrough">❓ Help</button>
                 </div>
-            </div>
-            <div class="table-content" id="responsesList">
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    No analyses yet. Start the camera and begin analysis to see results here.
-                </div>
-            </div>
+                <span class="bl-icon-close">×</span>
+            </section>
         </div>
     </div>
 
@@ -186,17 +215,17 @@
         <div class="walkthrough-highlight"></div>
     </div>
 
-  <script src="script.js"></script>
-  <script>
-  if (location.search.includes('dev')) {
-    const links = document.querySelectorAll('link[rel="stylesheet"]');
-    links.forEach(link => {
-      const url = new URL(link.href);
-      url.searchParams.set('v', Date.now()); // force unique each load
-      link.href = url.toString();
-    });
-  }
-</script>
+    <script src="script.js"></script>
+    <script>
+    if (location.search.includes('dev')) {
+        const links = document.querySelectorAll('link[rel="stylesheet"]');
+        links.forEach(link => {
+            const url = new URL(link.href);
+            url.searchParams.set('v', Date.now()); // force unique each load
+            link.href = url.toString();
+        });
+    }
+    </script>
 
 </body>
 </html>
