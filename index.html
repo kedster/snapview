@@ -59,7 +59,7 @@
 
         <div class="main-content">
             <div class="video-section">
-                <h3 class="section-title">📷 Camera Feed</h3>
+                <h3 class="section-title">Camera Feed</h3>
                 
                 <div class="video-container">
                     <video id="webcamFeed" autoplay playsinline muted></video>
@@ -80,7 +80,7 @@
                             <option value="">Select camera...</option>
                         </select>
                     </div>
-                    <button id="switchCameraButton" class="btn secondary" disabled>🔄 Switch</button>
+                    <button id="switchCameraButton" class="btn secondary" disabled>Switch Camera</button>
                 </div>
 
                 <div class="controls">
@@ -107,16 +107,71 @@
             </div>
 
             <div class="prompts-section">
-                <h3 class="section-title">🔍 Analysis Prompts</h3>
+                <h3 class="section-title">Research & Options</h3>
                 
-                <div class="preset-buttons">
-                    <button class="preset-btn repair" onclick="setRepairPrompts()">🔧 Repair</button>
-                    <button class="preset-btn nickname" onclick="setNicknamePrompts()">🏷️ Nickname</button>
-                    <button class="preset-btn identify" onclick="setIdentifyPrompts()">🔍 Identify</button>
-                    <button class="preset-btn nice" onclick="setNicePrompts()">😊 Nice</button>
-                    <button class="preset-btn poetic" onclick="setPoeticPrompts()">📝 Poetic</button>
-                    <button class="preset-btn ForSale" onclick="setForSale()">💰 For Sale</button>
-                    <button class="preset-btn Marketable" onclick="setMarketable()">📢 Marketable</button>
+                <!-- Research Options Panel -->
+                <div class="research-options">
+                    <div class="options-header" onclick="toggleOptionsPanel()">
+                        <span class="options-title">Advanced Research Controls</span>
+                        <span class="collapse-icon" id="collapseIcon">−</span>
+                    </div>
+                    
+                    <div class="options-panel" id="optionsPanel">
+                        <!-- Context Filters -->
+                        <div class="filter-group">
+                            <label class="filter-label">Context Focus:</label>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-context="general" onclick="setContextFilter('general')">General</button>
+                                <button class="filter-btn" data-context="ai" onclick="setContextFilter('ai')">AI/Tech</button>
+                                <button class="filter-btn" data-context="cloud" onclick="setContextFilter('cloud')">Cloud/Infrastructure</button>
+                                <button class="filter-btn" data-context="security" onclick="setContextFilter('security')">Security</button>
+                                <button class="filter-btn" data-context="business" onclick="setContextFilter('business')">Business</button>
+                                <button class="filter-btn" data-context="research" onclick="setContextFilter('research')">Research</button>
+                            </div>
+                        </div>
+
+                        <!-- Response Depth Control -->
+                        <div class="control-group">
+                            <label class="control-label">Response Depth:</label>
+                            <div class="control-options">
+                                <label class="radio-option">
+                                    <input type="radio" name="depth" value="overview" checked onchange="updateDepthSetting()">
+                                    <span>Overview</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="depth" value="detailed" onchange="updateDepthSetting()">
+                                    <span>Detailed</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="depth" value="comprehensive" onchange="updateDepthSetting()">
+                                    <span>Comprehensive</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Tone/Style Control -->
+                        <div class="control-group">
+                            <label class="control-label">Response Tone:</label>
+                            <select class="tone-select" id="toneSelect" onchange="updateToneSetting()">
+                                <option value="professional">Professional</option>
+                                <option value="technical">Technical</option>
+                                <option value="analytical">Analytical</option>
+                                <option value="educational">Educational</option>
+                                <option value="conversational">Conversational</option>
+                            </select>
+                        </div>
+
+                        <!-- Quick Presets -->
+                        <div class="preset-group">
+                            <label class="control-label">Quick Presets:</label>
+                            <div class="preset-buttons">
+                                <button class="preset-btn" onclick="setRepairPrompts()">Repair Analysis</button>
+                                <button class="preset-btn" onclick="setIdentifyPrompts()">Identification</button>
+                                <button class="preset-btn" onclick="setForSale()">Market Analysis</button>
+                                <button class="preset-btn" onclick="setMarketable()">Commercial Value</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="prompt-group">
@@ -149,11 +204,11 @@
             </div>
 
             <div class="results-section">
-                <h3 class="section-title">📊 Results & History</h3>
+                <h3 class="section-title">Results & History</h3>
                 
                 <div class="table-controls">
-                    <button id="exportButton" class="btn primary" disabled>📥 Export CSV</button>
-                    <button id="clearButton" class="btn danger">🗑️ Clear History</button>
+                    <button id="exportButton" class="btn primary" disabled>Export CSV</button>
+                    <button id="clearButton" class="btn secondary">Clear History</button>
                 </div>
                 
                 <div class="table-content" id="responsesList">

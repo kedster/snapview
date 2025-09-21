@@ -1634,3 +1634,136 @@ window.addEventListener('load', () => {
         }, 1000);
     }
 });
+
+// Research Options Panel Functions - Made globally accessible
+window.toggleOptionsPanel = function() {
+    const panel = document.getElementById('optionsPanel');
+    const icon = document.getElementById('collapseIcon');
+    
+    if (panel.classList.contains('collapsed')) {
+        panel.classList.remove('collapsed');
+        icon.textContent = '−';
+        icon.classList.remove('collapsed');
+    } else {
+        panel.classList.add('collapsed');
+        icon.textContent = '+';
+        icon.classList.add('collapsed');
+    }
+};
+
+// Context filter state
+window.currentContext = 'general';
+window.currentDepth = 'overview';
+window.currentTone = 'professional';
+
+window.setContextFilter = function(context) {
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.context === context) {
+            btn.classList.add('active');
+        }
+    });
+    
+    window.currentContext = context;
+    window.updatePromptsWithContext();
+};
+
+window.updateDepthSetting = function() {
+    const checkedRadio = document.querySelector('input[name="depth"]:checked');
+    window.currentDepth = checkedRadio.value;
+    window.updatePromptsWithContext();
+};
+
+window.updateToneSetting = function() {
+    const toneSelect = document.getElementById('toneSelect');
+    window.currentTone = toneSelect.value;
+    window.updatePromptsWithContext();
+};
+
+window.updatePromptsWithContext = function() {
+    const primaryPrompt = document.getElementById('primaryPrompt');
+    const secondaryPrompt = document.getElementById('secondaryPrompt');
+    
+    // Get base prompts based on context
+    let basePrompts = window.getContextPrompts(window.currentContext);
+    
+    // Apply depth and tone modifiers
+    let modifiedPrompts = window.applyDepthAndTone(basePrompts, window.currentDepth, window.currentTone);
+    
+    primaryPrompt.value = modifiedPrompts.primary;
+    secondaryPrompt.value = modifiedPrompts.secondary;
+};
+
+window.getContextPrompts = function(context) {
+    const contexts = {
+        general: {
+            primary: "Analyze this image comprehensively. Describe what you see including objects, people, activities, environment, and any notable details.",
+            secondary: "Based on your analysis, provide insights about the context, potential implications, safety considerations, and any interesting observations."
+        },
+        ai: {
+            primary: "Examine this image from a technical/AI perspective. Identify any technology, digital interfaces, AI-related equipment, screens, or computing devices visible.",
+            secondary: "Analyze the technical aspects, potential AI applications, data processing capabilities, or technological implications of what's shown."
+        },
+        cloud: {
+            primary: "Focus on infrastructure, networking, server equipment, cloud computing resources, or IT infrastructure visible in this image.",
+            secondary: "Assess the cloud computing potential, scalability considerations, infrastructure requirements, or deployment strategies relevant to what's shown."
+        },
+        security: {
+            primary: "Analyze this image for security aspects including physical security, access controls, surveillance equipment, safety measures, or potential vulnerabilities.",
+            secondary: "Evaluate security risks, compliance considerations, protection measures needed, or security best practices applicable to this scenario."
+        },
+        business: {
+            primary: "Examine this image from a business perspective. Identify commercial activities, business processes, market opportunities, or economic indicators.",
+            secondary: "Analyze the business potential, market value, operational efficiency, cost implications, or strategic opportunities visible."
+        },
+        research: {
+            primary: "Conduct a detailed research-oriented analysis. Document all observable elements systematically and objectively for further study.",
+            secondary: "Provide research insights, methodology considerations, data collection opportunities, or areas requiring further investigation."
+        }
+    };
+    
+    return contexts[context] || contexts.general;
+};
+
+window.applyDepthAndTone = function(basePrompts, depth, tone) {
+    let depthModifier = '';
+    let toneModifier = '';
+    
+    // Depth modifiers
+    switch (depth) {
+        case 'overview':
+            depthModifier = ' Provide a concise overview focusing on the most important elements.';
+            break;
+        case 'detailed':
+            depthModifier = ' Provide detailed analysis with specific descriptions and explanations.';
+            break;
+        case 'comprehensive':
+            depthModifier = ' Provide comprehensive analysis covering all aspects in depth with thorough explanations.';
+            break;
+    }
+    
+    // Tone modifiers
+    switch (tone) {
+        case 'professional':
+            toneModifier = ' Use professional, clear language suitable for business communication.';
+            break;
+        case 'technical':
+            toneModifier = ' Use technical terminology and precise language appropriate for technical documentation.';
+            break;
+        case 'analytical':
+            toneModifier = ' Provide analytical insights with logical reasoning and evidence-based conclusions.';
+            break;
+        case 'educational':
+            toneModifier = ' Explain in an educational manner that would be suitable for learning purposes.';
+            break;
+        case 'conversational':
+            toneModifier = ' Use a conversational tone that is easy to understand and engaging.';
+            break;
+    }
+    
+    return {
+        primary: basePrompts.primary + depthModifier + toneModifier,
+        secondary: basePrompts.secondary + depthModifier + toneModifier
+    };
+};
